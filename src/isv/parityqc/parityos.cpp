@@ -188,12 +188,12 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
     break;
   }
 
-  /// TODO: just a demo:
+  /// FIXME: implement authentication
   if (session->token != "foo") {
     return QDMI_ERROR_PERMISSIONDENIED;
   }
 
-  /// TODO: Add meaningful implementation
+  /// FIXME: Add meaningful implementation
 
   session->status = SESSION_STATUS::INITIALIZED;
   return QDMI_SUCCESS;
@@ -218,6 +218,8 @@ int ParityOS_QDMI_device_session_set_parameter(
     return QDMI_ERROR_BADSTATE;
   }
 
+  /// FIXME: authentication should work
+
   if (param != QDMI_DEVICE_SESSION_PARAMETER_TOKEN) {
     /// TODO: Add possibly more things we want to set.
     return QDMI_ERROR_NOTSUPPORTED;
@@ -239,6 +241,8 @@ int ParityOS_QDMI_device_session_create_device_job(
   if (session->status != SESSION_STATUS::INITIALIZED) {
     return QDMI_ERROR_BADSTATE;
   }
+
+  /// FIXME: probably want to create some meaningful job here (can be a dummy)
 
   *job = new ParityOS_QDMI_Device_Job_impl_d(session);
 
@@ -311,6 +315,8 @@ int ParityOS_QDMI_device_job_query_property(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
+  /// FIXME: should I already do something in the job query interface?
+
   const auto id_str = std::to_string(job->id);
 
   ADD_STRING_PROPERTY(QDMI_DEVICE_JOB_PROPERTY_ID, id_str.c_str(), prop, size,
@@ -334,7 +340,7 @@ int ParityOS_QDMI_device_job_submit(ParityOS_QDMI_Device_Job job) {
 
   job->status = QDMI_JOB_STATUS_SUBMITTED;
 
-  /// TODO: here we have to reach out to our python client. We probably want an
+  /// FIXME: here we have to reach out to our python client. We probably want an
   /// async call here. The interface itself allows both: sync and async.
   int err = 1;
 
@@ -356,6 +362,8 @@ int ParityOS_QDMI_device_job_cancel(ParityOS_QDMI_Device_Job job) {
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
+  /// FIXME: can we cancel our jobs?
+
   job->status = QDMI_JOB_STATUS_CANCELED;
   local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
   return QDMI_SUCCESS;
@@ -367,7 +375,7 @@ int ParityOS_QDMI_device_job_check(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  /// TODO: implement this.
+  /// FIXME: implement this.
   local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
   job->status = QDMI_JOB_STATUS_FAILED;
   *status = job->status;
@@ -381,7 +389,7 @@ int ParityOS_QDMI_device_job_wait(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  /// TODO: implement this properly
+  /// FIXME: implement wait for job properly (maybe)
   return QDMI_ERROR_FATAL;
 }
 
@@ -397,6 +405,8 @@ int ParityOS_QDMI_device_job_get_results(ParityOS_QDMI_Device_Job job,
        result != QDMI_JOB_RESULT_CUSTOM5)) {
     return QDMI_ERROR_INVALIDARGUMENT;
   }
+
+  /// FIXME: implement getting the job result
 
   switch (result) {
   case QDMI_JOB_RESULT_CUSTOM1:
