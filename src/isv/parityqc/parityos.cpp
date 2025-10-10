@@ -188,7 +188,7 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
     break;
   }
 
-  /// FIXME: implement authentication
+  /// FIXME: implement authentication!
   if (session->token != "foo") {
     return QDMI_ERROR_PERMISSIONDENIED;
   }
