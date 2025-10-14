@@ -4,6 +4,11 @@
 #include "qdmi/constants.h"
 #include <gtest/gtest.h>
 
+// FIXME: better test setup? Currently we need
+// - hardcode the user to "admin"
+// - export PARITYOS_PASS=... for that user
+// - Run parityapi locally in a container.
+
 class QDMIImplementationTest : public ::testing::Test {
 private:
 protected:
@@ -11,6 +16,9 @@ protected:
 
   static void SetUpTestSuite() {
     const char *token = "foo";
+    const char *baseurl =
+        "http://localhost:8000/v3"; // FIXME: make it configurable?
+    const char *username = "admin"; /// FIXME: better name (e.g. testuser)?
 
     // This function *must* be called first (and exactly once):
     ASSERT_EQ(ParityOS_QDMI_device_initialize(), QDMI_SUCCESS)
@@ -23,10 +31,16 @@ protected:
     // Use this function to supply all required parameters needed for
     // session_init.
     ASSERT_EQ(ParityOS_QDMI_device_session_set_parameter(
-                  session, QDMI_DEVICE_SESSION_PARAMETER_TOKEN,
-                  strlen(token) * sizeof(char), token),
+                  session, QDMI_DEVICE_SESSION_PARAMETER_BASEURL,
+                  strlen(baseurl) * sizeof(char), baseurl),
               QDMI_SUCCESS)
-        << "Failed to set authentication token";
+        << "Failed to set base url";
+
+    ASSERT_EQ(ParityOS_QDMI_device_session_set_parameter(
+                  session, QDMI_DEVICE_SESSION_PARAMETER_USERNAME,
+                  strlen(username) * sizeof(char), username),
+              QDMI_SUCCESS)
+        << "Failed to set username";
 
     // This function has to be called before using the `session` with the device
     // query or device job interface.

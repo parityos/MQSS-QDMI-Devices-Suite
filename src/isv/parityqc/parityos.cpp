@@ -98,8 +98,12 @@ void local_set_device_status(QDMI_Device_Status status) {
 
 struct ParityOS_QDMI_Device_Session_impl_d {
   enum SESSION_STATUS status = SESSION_STATUS::ALLOCATED;
-  /// Secret token for authentication with parityos
-  std::string token = "";
+  /// For authentication with parityapi, e.g. `https://api.parityqc.com/`.
+  std::string base_url = "";
+  /// For authentication with parityapi
+  std::string username = "";
+  /// Let it be hardcoded for now.
+  std::string api_version = "v3";
 };
 
 /// TODO: We might want to refactor this object once we have a working
@@ -137,10 +141,10 @@ struct ParityOS_QDMI_Device_Job_impl_d {
   }
 };
 
-/// Trivial implementation as we provide a compilation service.
+/// Trivial implementation because we provide a compilation service.
 struct ParityOS_QDMI_Site_impl_d {};
 
-/// Trivial implementation as we provide a compilation service.
+/// Trivial implementation because we provide a compilation service.
 struct ParityOS_QDMI_Operation_impl_d {};
 
 //===----------------------------------------------------------------------===//
@@ -189,7 +193,7 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
   }
 
   /// FIXME: implement authentication!
-  if (session->token != "foo") {
+  if (session->username != "admin") {
     return QDMI_ERROR_PERMISSIONDENIED;
   }
 
@@ -218,15 +222,22 @@ int ParityOS_QDMI_device_session_set_parameter(
     return QDMI_ERROR_BADSTATE;
   }
 
-  /// FIXME: authentication should work
-
-  if (param != QDMI_DEVICE_SESSION_PARAMETER_TOKEN) {
-    /// TODO: Add possibly more things we want to set.
+  if (param != QDMI_DEVICE_SESSION_PARAMETER_BASEURL &&
+      param != QDMI_DEVICE_SESSION_PARAMETER_USERNAME) {
     return QDMI_ERROR_NOTSUPPORTED;
   }
 
   if (value != nullptr) {
-    session->token = std::string(static_cast<const char *>(value), size);
+    switch (param) {
+    case QDMI_DEVICE_SESSION_PARAMETER_BASEURL:
+      session->base_url = std::string(static_cast<const char *>(value), size);
+      break;
+    case QDMI_DEVICE_SESSION_PARAMETER_USERNAME:
+      session->username = std::string(static_cast<const char *>(value), size);
+      break;
+    default:
+      return QDMI_ERROR_NOTSUPPORTED;
+    }
   }
 
   return QDMI_SUCCESS;
@@ -430,7 +441,7 @@ int ParityOS_QDMI_device_session_query_device_property(
   // TODO: Bettern name?
   ADD_STRING_PROPERTY(QDMI_DEVICE_PROPERTY_NAME, "ParityOS", prop, size, value,
                       size_ret)
-  // TODO: Version of parityos?
+  // FIXME: Version of parityos?
   ADD_STRING_PROPERTY(QDMI_DEVICE_PROPERTY_VERSION, "3.0.0", prop, size, value,
                       size_ret)
   // TODO: Version of QDMI. Hardcode at implementation time? Retrieve from
