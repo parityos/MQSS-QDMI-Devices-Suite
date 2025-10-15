@@ -10,6 +10,7 @@
 #include <Python.h>
 #include <assert.h>
 #include <cstddef>
+#include <cstdlib>
 #include <parityos_qdmi/device.h>
 #include <string>
 
@@ -19,6 +20,10 @@
 
 namespace {
 
+#define SCRIPT_PATH "PARITYQC_SCRIPT_PATH"
+#define SCRIPT_NAME "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME"
+
+/// FIXME: do we want that?
 /// NOTE: For ease of discoverability we prefix private functions with `local_`.
 
 enum class SESSION_STATUS {
@@ -29,20 +34,91 @@ enum class SESSION_STATUS {
   INITIALIZED,
 };
 
-/// TODO: This was in the template. Document what the device status even means
+/// FIXME: This was in the template. Document what the device status even means
 /// for us! After that check if this implementation really satisfies our
 /// specification.
-QDMI_Device_Status *local_get_device_status(void) {
+QDMI_Device_Status *local_get_device_status() {
   static QDMI_Device_Status device_status = QDMI_DEVICE_STATUS_OFFLINE;
   return &device_status;
 }
 
-QDMI_Device_Status local_read_device_status(void) {
+QDMI_Device_Status local_read_device_status() {
   return *local_get_device_status();
 }
 
 void local_set_device_status(QDMI_Device_Status status) {
   *local_get_device_status() = status;
+}
+
+/// FIXME: check if this is true.
+/// FIXME: setting the initial value is a bit indirect. We should put all the
+/// python stuff into one object for better resource management.
+///
+/// It can happen that our device is called from a python process. E.g. if the
+/// driver is implemented in python. Certain code paths depend on that.
+bool is_from_python() {
+  static bool is_initialized = Py_IsInitialized() != 0;
+  return is_initialized;
+}
+
+/** @brief Checks if there is a python related error.
+ *
+ * This macro checks whether the `value` is `nullptr` or `Py_None`. If it is, it
+ * returns a `QDMI_ERROR_FATAL`.
+ *
+ * It also auto-detects whether it needs to release the gil.
+ */
+#define CHECK_PYTHON_ERROR(value)                                              \
+  {                                                                            \
+    if (value == Py_None || value == nullptr) {                                \
+                                                                               \
+      PyErr_Print();                                                           \
+      if (!is_from_python()) {                                                 \
+        PyGILState_Release(gstate);                                            \
+      }                                                                        \
+      return QDMI_ERROR_FATAL;                                                 \
+    }                                                                          \
+  }
+
+/// Refers to the parityos wrapper script.
+PyObject **get_parityos_module() {
+  static PyObject *python_module = nullptr;
+  return &python_module;
+}
+
+/// FIXME: documentation
+int initialize_python() {
+  const auto script_path = std::getenv(SCRIPT_PATH);
+  const auto script_name = std::getenv(SCRIPT_NAME);
+
+  // FIXME: ERROR if envs not available. What about logging?
+  assert(script_path && "Missing script path");
+  assert(script_name && "Missing script name");
+
+  PyGILState_STATE gstate;
+  if (!is_from_python()) {
+    Py_Initialize();
+    PyThreadState *_save = PyEval_SaveThread();
+    gstate = PyGILState_Ensure();
+  }
+
+  PyObject *sys = PyImport_ImportModule("sys");
+  PyObject *sys_path = PyObject_GetAttrString(sys, "path");
+
+  PyList_Append(sys_path, PyUnicode_FromString(script_path));
+
+  PyObject *pName = PyUnicode_DecodeFSDefault(script_name);
+  CHECK_PYTHON_ERROR(pName);
+
+  *get_parityos_module() = PyImport_Import(pName);
+  CHECK_PYTHON_ERROR(*get_parityos_module());
+
+  Py_XDECREF(pName);
+
+  if (!is_from_python())
+    PyGILState_Release(gstate);
+
+  return QDMI_SUCCESS;
 }
 
 } // namespace
@@ -89,6 +165,14 @@ void local_set_device_status(QDMI_Device_Status status) {
         *size_ret = strlen(prop_value) + 1;                                    \
       }                                                                        \
       return QDMI_SUCCESS;                                                     \
+    }                                                                          \
+  }
+
+/// If `value` is not a qdmi success return it.
+#define CHECK_QDMI_ERROR(value)                                                \
+  {                                                                            \
+    if (value != QDMI_SUCCESS) {                                               \
+      return value;                                                            \
     }                                                                          \
   }
 
@@ -152,6 +236,8 @@ struct ParityOS_QDMI_Operation_impl_d {};
 //===----------------------------------------------------------------------===//
 
 int ParityOS_QDMI_device_initialize(void) {
+  // FIXME: CHECK_QDMI_ERROR(initialize_python());
+
   local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
   return QDMI_SUCCESS;
 }
@@ -192,7 +278,7 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
     break;
   }
 
-  /// FIXME: implement authentication!
+  /// FIXME: implement authentication!!!!!!!
   if (session->username != "admin") {
     return QDMI_ERROR_PERMISSIONDENIED;
   }

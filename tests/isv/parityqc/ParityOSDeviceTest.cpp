@@ -18,7 +18,7 @@ protected:
     const char *token = "foo";
     const char *baseurl =
         "http://localhost:8000/v3"; // FIXME: make it configurable?
-    const char *username = "admin"; /// FIXME: better name (e.g. testuser)?
+    const char *username = "admin"; // FIXME: better name (e.g. testuser)?
 
     // This function *must* be called first (and exactly once):
     ASSERT_EQ(ParityOS_QDMI_device_initialize(), QDMI_SUCCESS)
