@@ -88,12 +88,13 @@ PyObject **get_parityos_module() {
 
 /// FIXME: documentation
 int initialize_python() {
-  const auto script_path = std::getenv(SCRIPT_PATH);
+  //const auto script_path = std::getenv(SCRIPT_PATH);
+  const auto script_path = "/workspaces/MQSS-QDMI-Devices-Suite/src/isv/parityqc"; // FIXME: why is env variable not working?
   const auto script_name = std::getenv(SCRIPT_NAME);
 
   // FIXME: ERROR if envs not available. What about logging?
-  assert(script_path && "Missing script path");
-  assert(script_name && "Missing script name");
+  //assert(script_path && "Missing script path");
+  //assert(script_name && "Missing script name");
 
   PyGILState_STATE gstate;
   if (!is_from_python()) {
@@ -110,7 +111,7 @@ int initialize_python() {
   PyObject *pName = PyUnicode_DecodeFSDefault(script_name);
   CHECK_PYTHON_ERROR(pName);
 
-  *get_parityos_module() = PyImport_Import(pName);
+  *get_parityos_module() = PyImport_Import(pName); // FIXME: loads the module and then fails
   CHECK_PYTHON_ERROR(*get_parityos_module());
 
   Py_XDECREF(pName);
@@ -236,7 +237,7 @@ struct ParityOS_QDMI_Operation_impl_d {};
 //===----------------------------------------------------------------------===//
 
 int ParityOS_QDMI_device_initialize(void) {
-  // FIXME: CHECK_QDMI_ERROR(initialize_python());
+  CHECK_QDMI_ERROR(initialize_python());
 
   local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
   return QDMI_SUCCESS;
