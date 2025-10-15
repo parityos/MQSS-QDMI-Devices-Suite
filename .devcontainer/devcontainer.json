@@ -19,8 +19,8 @@
 
     "LRZ_HOST_URL": "https://portal.quantum.lrz.de:4000/v1",
 
-    // FIXME: what do we need here?
-    "PARITYQC_FOLDER_PATH": "/workspaces/QDMI-Devices/src/parityqc/",
+    // FIXME: what do we need here? Set the right values!
+    "PARITYQC_SCRIPT_PATH": "/workspaces/QDMI-Devices/src/parityqc/",
     "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME": "parityos_wrapper.py"
   },
 
