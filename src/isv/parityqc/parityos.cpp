@@ -20,9 +20,11 @@
 //===----------------------------------------------------------------------===//
 
 namespace {
-/// Environment variable containing absolute path to the folder containing all relevant python scripts.
+/// Environment variable containing absolute path to the folder containing all
+/// relevant python scripts.
 #define SCRIPT_PATH "PARITYQC_SCRIPT_PATH"
-/// Environment variable containing basename of the python script without extension (e.g. `my_script`, not `my_script.py`).
+/// Environment variable containing basename of the python script without
+/// extension (e.g. `my_script`, not `my_script.py`).
 #define SCRIPT_NAME "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME"
 
 /// FIXME: do we want that?
@@ -83,8 +85,6 @@ bool is_from_python() {
     }                                                                          \
   }
 
-
-
 /// Refers to the parityos wrapper script.
 PyObject **get_parityos_module() {
   static PyObject *python_module = nullptr;
@@ -93,15 +93,19 @@ PyObject **get_parityos_module() {
 
 /// FIXME: documentation
 int initialize_python() {
-  //const auto script_path = std::getenv(SCRIPT_PATH);
-  const auto script_path = "/workspaces/MQSS-QDMI-Devices-Suite/src/isv/parityqc"; // FIXME: why is env variable not working?
+  // const auto script_path = std::getenv(SCRIPT_PATH);
+  const auto script_path =
+      "/workspaces/MQSS-QDMI-Devices-Suite/src/isv/parityqc"; // FIXME: why is
+                                                              // env variable
+                                                              // not working?
   const auto script_name = std::getenv(SCRIPT_NAME);
 
   // FIXME: ERROR if envs not available. What about logging?
   assert(script_path && "Missing script path");
   assert(script_name && "Missing script name");
 
-  // Arbitrary and irrelevant initial value for `gstate` to suppress `-Wmaybe-uninitialized`.
+  // Arbitrary and irrelevant initial value for `gstate` to suppress
+  // `-Wmaybe-uninitialized`.
   PyGILState_STATE gstate = PyGILState_LOCKED;
   if (!is_from_python()) {
     Py_Initialize();
@@ -118,7 +122,8 @@ int initialize_python() {
   CHECK_PYTHON_ERROR(pName);
 
   auto module = PyImport_Import(pName);
-  /// FIXME: it is probably better to return the module, this makes the code clearer. We can then also skip one of the macros.
+  /// FIXME: it is probably better to return the module, this makes the code
+  /// clearer. We can then also skip one of the macros.
   *get_parityos_module() = module;
   CHECK_PYTHON_ERROR(*get_parityos_module());
 
@@ -130,18 +135,21 @@ int initialize_python() {
   return QDMI_SUCCESS;
 }
 
-/// Calls the python function with the same name (and *essentially* the same signature).
-QDMI_STATUS create_parityos_client(PyObject** out, std::string_view username, std::string_view base_url) {
+/// Calls the python function with the same name (and *essentially* the same
+/// signature).
+QDMI_STATUS create_parityos_client(PyObject **out, std::string_view username,
+                                   std::string_view base_url) {
   // FIXME: why is it here OK to grab the GIL state without check?
   PyGILState_STATE gstate = PyGILState_Ensure();
 
   // FIXME: we should distinguish FATAL from PERMISSION DENIED errors.
 
-  PyObject *pFunc = PyObject_GetAttrString(*get_parityos_module(),
-                                           "create_parityos_client");
+  PyObject *pFunc =
+      PyObject_GetAttrString(*get_parityos_module(), "create_parityos_client");
   CHECK_PYTHON_ERROR(pFunc);
 
-  PyObject *pArgs = PyTuple_Pack(2, PyUnicode_FromString(username.data()), PyUnicode_FromString(base_url.data()));
+  PyObject *pArgs = PyTuple_Pack(2, PyUnicode_FromString(username.data()),
+                                 PyUnicode_FromString(base_url.data()));
   CHECK_PYTHON_ERROR(pArgs);
 
   PyObject *pResult = PyObject_CallObject(pFunc, pArgs);
@@ -207,8 +215,6 @@ QDMI_STATUS create_parityos_client(PyObject** out, std::string_view username, st
     }                                                                          \
   }
 
-
-
 //===----------------------------------------------------------------------===//
 // QDMI opaque types implementation
 //===----------------------------------------------------------------------===//
@@ -221,13 +227,13 @@ struct ParityOS_QDMI_Device_Session_impl_d {
   std::string username = "";
   /// Let it be hardcoded for now.
   const unsigned api_version = 3;
-  /// This is set iff it is in the `INITIALIZED` status (authentication with parityapi was successfull). The session owns the client.
-  PyObject* client = nullptr;
+  /// This is set iff it is in the `INITIALIZED` status (authentication with
+  /// parityapi was successfull). The session owns the client.
+  PyObject *client = nullptr;
 
-  /// Whether the session has set all fields relevant for authentication with parityos.
-  bool has_auth_data() {
-    return base_url != "" && username != "";
-  }
+  /// Whether the session has set all fields relevant for authentication with
+  /// parityos.
+  bool has_auth_data() { return base_url != "" && username != ""; }
 
   ~ParityOS_QDMI_Device_Session_impl_d() {
     auto gstate = PyGILState_Ensure();
@@ -280,8 +286,6 @@ struct ParityOS_QDMI_Operation_impl_d {};
 //===----------------------------------------------------------------------===//
 // QDMI device API implementation
 //===----------------------------------------------------------------------===//
-
-
 
 int ParityOS_QDMI_device_initialize(void) {
   CHECK_QDMI_ERROR(initialize_python());
@@ -336,7 +340,8 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
     break;
   }
 
-  // After a session is successfully initialized we do not allow any further attempts.
+  // After a session is successfully initialized we do not allow any further
+  // attempts.
   if (session->status != SESSION_STATUS::ALLOCATED) {
     return QDMI_ERROR_BADSTATE;
   }
@@ -345,8 +350,9 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
     return QDMI_ERROR_PERMISSIONDENIED;
   }
 
-  CHECK_QDMI_ERROR(create_parityos_client(&session->client, session->username, session->base_url));
-  
+  CHECK_QDMI_ERROR(create_parityos_client(&session->client, session->username,
+                                          session->base_url));
+
   session->status = SESSION_STATUS::INITIALIZED;
   return QDMI_SUCCESS;
 }

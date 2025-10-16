@@ -29,9 +29,7 @@
   },
 
   // TODO: this is needed for accessing local version of parityapi at localhost. For local testing
-  // something like this will still be needed. Have to figure this out or discuss if this can even 
+  // something like this will still be needed. Have to figure this out or discuss if this can even
   // stay here.
-  "runArgs": [
-    "--network=host"
-  ]
+  "runArgs": ["--network=host"]
 }

@@ -12,23 +12,27 @@
 
 class QDMIImplementationTest : public ::testing::Test {
 private:
-  static void assert_parityos_pass_is_set_or_exit(const char* username) {
+  static void assert_parityos_pass_is_set_or_exit(const char *username) {
     auto pass_var = "PARITYOS_PASS";
 
     auto pass = std::getenv(pass_var);
     if (!pass) {
-      std::cerr << "\nERROR: Please export `" << pass_var << "` into your environment. It should contain the parityos password of the user `" << username << "` which is used for testing." << std::endl;
+      std::cerr << "\nERROR: Please export `" << pass_var
+                << "` into your environment. It should contain the parityos "
+                   "password of the user `"
+                << username << "` which is used for testing." << std::endl;
       exit(1);
     }
   }
 
   /// Base URL of the Parity API (you should use a local version).
-  static const char * get_base_url_or_exit() {
+  static const char *get_base_url_or_exit() {
     auto baseurl_var = "PARITYQC_PARITYOS_BASEURL";
 
     auto baseurl = std::getenv(baseurl_var);
     if (!baseurl) {
-      std::cerr << "\nERROR: Please export `" << baseurl_var << "` into your environment." << std::endl;
+      std::cerr << "\nERROR: Please export `" << baseurl_var
+                << "` into your environment." << std::endl;
       exit(1);
     }
 
