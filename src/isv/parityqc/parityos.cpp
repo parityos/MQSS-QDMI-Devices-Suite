@@ -97,7 +97,8 @@ int initialize_python() {
   assert(script_path && "Missing script path");
   assert(script_name && "Missing script name");
 
-  PyGILState_STATE gstate;
+  // Arbitrary and irrelevant initial value for `gstate` to suppress `-Wmaybe-uninitialized`.
+  PyGILState_STATE gstate = PyGILState_LOCKED;
   if (!is_from_python()) {
     Py_Initialize();
     PyThreadState *_save = PyEval_SaveThread();
@@ -241,10 +242,7 @@ struct ParityOS_QDMI_Operation_impl_d {};
 
 
 int ParityOS_QDMI_device_initialize(void) {
-
-  int err = initialize_python(); // FIXME: do I need temporary variable?
-  CHECK_QDMI_ERROR(err);
-
+  CHECK_QDMI_ERROR(initialize_python());
   local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
   return QDMI_SUCCESS;
 }
