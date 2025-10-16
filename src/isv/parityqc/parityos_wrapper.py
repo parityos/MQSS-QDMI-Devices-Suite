@@ -5,14 +5,19 @@ TODO: Make sure parityos is available whenever this script is executed.
 FIXME: docstring
 """
 
+from typing import Optional
+
 print("FIXME: parityos_wrapper start module")
 
-def doit():
-    from parityos.services.client import HTTPClient
-    # FIXME: replace URL and username with variable
-    client = HTTPClient(username="testuser", host="http://localhost:8000/v3")
+# FIXME: docstring
+def create_parityos_client(username: str, base_url: str) -> Optional["HTTPClient"]:
+    try:
+        print("FIXME: start creating client")
+        from parityos.services.client import HTTPClient
+        client = HTTPClient(username=username, host=base_url)
+        print("FIXME: done creating client")
+        return client
+    except:
+        return None
 
-    print("DONE")
-
-# doit()
 print("FIXME: parityos_wrapper end module")

@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <parityos_qdmi/device.h>
 #include <string>
+#include <string_view>
 
 //===----------------------------------------------------------------------===//
 // Private code
@@ -81,6 +82,8 @@ bool is_from_python() {
     }                                                                          \
   }
 
+
+
 /// Refers to the parityos wrapper script.
 PyObject **get_parityos_module() {
   static PyObject *python_module = nullptr;
@@ -114,6 +117,7 @@ int initialize_python() {
   CHECK_PYTHON_ERROR(pName);
 
   auto module = PyImport_Import(pName);
+  /// FIXME: it is probably better to return the module, this makes the code clearer. We can then also skip one of the macros.
   *get_parityos_module() = module;
   CHECK_PYTHON_ERROR(*get_parityos_module());
 
@@ -122,6 +126,28 @@ int initialize_python() {
   if (!is_from_python())
     PyGILState_Release(gstate);
 
+  return QDMI_SUCCESS;
+}
+
+/// Calls the python function with the same name (and *essentially* the same signature).
+QDMI_STATUS create_parityos_client(PyObject** out, std::string_view username, std::string_view base_url) {
+  // FIXME: why is it here OK to grab the GIL state without check?
+  PyGILState_STATE gstate = PyGILState_Ensure();
+
+  // FIXME: we should distinguish FATAL from PERMISSION DENIED errors.
+
+  PyObject *pFunc = PyObject_GetAttrString(*get_parityos_module(),
+                                           "create_parityos_client");
+  CHECK_PYTHON_ERROR(pFunc);
+
+  PyObject *pArgs = PyTuple_Pack(2, PyUnicode_FromString(username.data()), PyUnicode_FromString(base_url.data()));
+  CHECK_PYTHON_ERROR(pArgs);
+
+  PyObject *pResult = PyObject_CallObject(pFunc, pArgs);
+  CHECK_PYTHON_ERROR(pResult);
+
+  *out = pResult;
+  PyGILState_Release(gstate);
   return QDMI_SUCCESS;
 }
 
@@ -180,6 +206,8 @@ int initialize_python() {
     }                                                                          \
   }
 
+
+
 //===----------------------------------------------------------------------===//
 // QDMI opaque types implementation
 //===----------------------------------------------------------------------===//
@@ -191,7 +219,14 @@ struct ParityOS_QDMI_Device_Session_impl_d {
   /// For authentication with parityapi
   std::string username = "";
   /// Let it be hardcoded for now.
-  std::string api_version = "v3";
+  const unsigned api_version = 3;
+  /// This is set iff it is in the `INITIALIZED` status (authentication with parityapi was successfull).
+  PyObject* client = nullptr;
+
+  /// Whether the session has set all fields relevant for authentication with parityos.
+  bool has_auth_data() {
+    return base_url != "" && username != "";
+  }
 };
 
 /// TODO: We might want to refactor this object once we have a working
@@ -294,13 +329,17 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
     break;
   }
 
-  /// FIXME: implement authentication!!!!!!!
-  if (session->username != "testuser") {
+  // After a session is successfully initialized we do not allow any further attempts.
+  if (session->status != SESSION_STATUS::ALLOCATED) {
+    return QDMI_ERROR_BADSTATE;
+  }
+
+  if (!session->has_auth_data()) {
     return QDMI_ERROR_PERMISSIONDENIED;
   }
 
-  /// FIXME: Add meaningful implementation
-
+  CHECK_QDMI_ERROR(create_parityos_client(&session->client, session->username, session->base_url));
+  
   session->status = SESSION_STATUS::INITIALIZED;
   return QDMI_SUCCESS;
 }

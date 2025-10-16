@@ -23,7 +23,7 @@ private:
   }
 
   /// Base URL of the Parity API (you should use a local version).
-  static const char * get_baseurl_or_exit() {
+  static const char * get_base_url_or_exit() {
     auto baseurl_var = "PARITYQC_PARITYOS_BASEURL";
 
     auto baseurl = std::getenv(baseurl_var);
@@ -39,7 +39,7 @@ protected:
   static ParityOS_QDMI_Device_Session session;
 
   static void SetUpTestSuite() {
-    const char *baseurl = get_baseurl_or_exit();
+    const char *base_url = get_base_url_or_exit();
     const char *username = "testuser";
 
     assert_parityos_pass_is_set_or_exit(username);
@@ -56,7 +56,7 @@ protected:
     // session_init.
     ASSERT_EQ(ParityOS_QDMI_device_session_set_parameter(
                   session, QDMI_DEVICE_SESSION_PARAMETER_BASEURL,
-                  strlen(baseurl) * sizeof(char), baseurl),
+                  strlen(base_url) * sizeof(char), base_url),
               QDMI_SUCCESS)
         << "Failed to set base url";
 
