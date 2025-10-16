@@ -19,9 +19,13 @@
 
     "LRZ_HOST_URL": "https://portal.quantum.lrz.de:4000/v1",
 
-    // FIXME: what do we need here? Set the right values!
-    "PARITYQC_SCRIPT_PATH": "/workspaces/QDMI-Devices/src/parityqc/",
-    "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME": "parityos_wrapper"
+    // TODO: It isn't great to set the values for all developers at once.
+    "PARITYQC_SCRIPT_PATH": "/workspaces/MQSS-QDMI-Devices-Suite/src/parityqc/",
+    "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME": "parityos_wrapper",
+    // Local parity api. You have to set it up yourself.
+    "PARITYQC_PARITYOS_BASEURL": "http://localhost:8000/v3",
+    // Password for `testuser`, you have to create it locally:
+    "PARITYOS_PASS": "a9Y-*0mb"
   },
 
   // TODO: this is needed for accessing local version of parityapi at localhost. For local testing

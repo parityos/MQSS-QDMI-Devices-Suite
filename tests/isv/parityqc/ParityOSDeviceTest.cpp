@@ -14,6 +14,7 @@ class QDMIImplementationTest : public ::testing::Test {
 private:
   static void assert_parityos_pass_is_set_or_exit(const char* username) {
     auto pass_var = "PARITYOS_PASS";
+
     auto pass = std::getenv(pass_var);
     if (!pass) {
       std::cerr << "\nERROR: Please export `" << pass_var << "` into your environment. It should contain the parityos password of the user `" << username << "` which is used for testing." << std::endl;
@@ -21,13 +22,25 @@ private:
     }
   }
 
+  /// Base URL of the Parity API (you should use a local version).
+  static const char * get_baseurl_or_exit() {
+    auto baseurl_var = "PARITYQC_PARITYOS_BASEURL";
+
+    auto baseurl = std::getenv(baseurl_var);
+    if (!baseurl) {
+      std::cerr << "\nERROR: Please export `" << baseurl_var << "` into your environment." << std::endl;
+      exit(1);
+    }
+
+    return baseurl;
+  }
+
 protected:
   static ParityOS_QDMI_Device_Session session;
 
   static void SetUpTestSuite() {
-    const char *baseurl =
-        "http://localhost:8000/v3"; // FIXME: make it configurable?
-    const char *username = "admin"; // FIXME: better name (e.g. testuser)?
+    const char *baseurl = get_baseurl_or_exit();
+    const char *username = "testuser";
 
     assert_parityos_pass_is_set_or_exit(username);
 

@@ -295,7 +295,7 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
   }
 
   /// FIXME: implement authentication!!!!!!!
-  if (session->username != "admin") {
+  if (session->username != "testuser") {
     return QDMI_ERROR_PERMISSIONDENIED;
   }
 
