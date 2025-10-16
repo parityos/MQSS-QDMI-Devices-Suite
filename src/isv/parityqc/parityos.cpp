@@ -19,8 +19,9 @@
 //===----------------------------------------------------------------------===//
 
 namespace {
-
+/// Environment variable containing absolute path to the folder containing all relevant python scripts.
 #define SCRIPT_PATH "PARITYQC_SCRIPT_PATH"
+/// Environment variable containing basename of the python script without extension (e.g. `my_script`, not `my_script.py`).
 #define SCRIPT_NAME "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME"
 
 /// FIXME: do we want that?
@@ -29,7 +30,7 @@ namespace {
 enum class SESSION_STATUS {
   /// Session starts in allocated state.
   ALLOCATED,
-  /// A session move to the initialized state once
+  /// A session moves to the initialized state once
   /// ParityOS_QDMI_device_session_init was called.
   INITIALIZED,
 };
@@ -93,8 +94,8 @@ int initialize_python() {
   const auto script_name = std::getenv(SCRIPT_NAME);
 
   // FIXME: ERROR if envs not available. What about logging?
-  //assert(script_path && "Missing script path");
-  //assert(script_name && "Missing script name");
+  assert(script_path && "Missing script path");
+  assert(script_name && "Missing script name");
 
   PyGILState_STATE gstate;
   if (!is_from_python()) {
@@ -111,7 +112,8 @@ int initialize_python() {
   PyObject *pName = PyUnicode_DecodeFSDefault(script_name);
   CHECK_PYTHON_ERROR(pName);
 
-  *get_parityos_module() = PyImport_Import(pName); // FIXME: loads the module and then fails
+  auto module = PyImport_Import(pName);
+  *get_parityos_module() = module;
   CHECK_PYTHON_ERROR(*get_parityos_module());
 
   Py_XDECREF(pName);
@@ -236,8 +238,12 @@ struct ParityOS_QDMI_Operation_impl_d {};
 // QDMI device API implementation
 //===----------------------------------------------------------------------===//
 
+
+
 int ParityOS_QDMI_device_initialize(void) {
-  CHECK_QDMI_ERROR(initialize_python());
+
+  int err = initialize_python(); // FIXME: do I need temporary variable?
+  CHECK_QDMI_ERROR(err);
 
   local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
   return QDMI_SUCCESS;
@@ -245,6 +251,17 @@ int ParityOS_QDMI_device_initialize(void) {
 
 int ParityOS_QDMI_device_finalize(void) {
   local_set_device_status(QDMI_DEVICE_STATUS_OFFLINE);
+
+  if (*get_parityos_module() != nullptr) {
+    Py_DECREF(*get_parityos_module());
+    *get_parityos_module() = nullptr;
+  }
+
+  if (Py_IsInitialized() && !_Py_IsFinalizing() && !is_from_python()) {
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    Py_Finalize();
+  }
+
   return QDMI_SUCCESS;
 }
 

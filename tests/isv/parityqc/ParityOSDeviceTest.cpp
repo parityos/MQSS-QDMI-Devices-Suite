@@ -15,7 +15,6 @@ protected:
   static ParityOS_QDMI_Device_Session session;
 
   static void SetUpTestSuite() {
-    const char *token = "foo";
     const char *baseurl =
         "http://localhost:8000/v3"; // FIXME: make it configurable?
     const char *username = "admin"; // FIXME: better name (e.g. testuser)?

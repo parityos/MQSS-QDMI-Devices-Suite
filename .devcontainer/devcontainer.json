@@ -21,7 +21,7 @@
 
     // FIXME: what do we need here? Set the right values!
     "PARITYQC_SCRIPT_PATH": "/workspaces/QDMI-Devices/src/parityqc/",
-    "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME": "parityos_wrapper.py"
+    "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME": "parityos_wrapper"
   },
 
   // TODO: this is needed for accessing local version of parityapi at localhost. For local testing
