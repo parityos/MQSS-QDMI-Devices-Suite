@@ -14,7 +14,7 @@
 class PythonEnvironment : public ::testing::Environment {
 public:
     void SetUp() override { Py_Initialize(); }
-    void TearDown() override { Py_Finalize(); }
+    void TearDown() override { Py_Finalize(); } 
 };
 
 int main(int argc, char** argv) {
