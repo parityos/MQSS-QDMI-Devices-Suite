@@ -220,12 +220,18 @@ struct ParityOS_QDMI_Device_Session_impl_d {
   std::string username = "";
   /// Let it be hardcoded for now.
   const unsigned api_version = 3;
-  /// This is set iff it is in the `INITIALIZED` status (authentication with parityapi was successfull).
+  /// This is set iff it is in the `INITIALIZED` status (authentication with parityapi was successfull). The session owns the client.
   PyObject* client = nullptr;
 
   /// Whether the session has set all fields relevant for authentication with parityos.
   bool has_auth_data() {
     return base_url != "" && username != "";
+  }
+
+  ~ParityOS_QDMI_Device_Session_impl_d() {
+    auto gstate = PyGILState_Ensure();
+    Py_XDECREF(client);
+    PyGILState_Release(gstate);
   }
 };
 
