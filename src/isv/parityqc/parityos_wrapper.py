@@ -14,10 +14,12 @@ def create_parityos_client(username: str, base_url: str) -> Optional["HTTPClient
     try:
         print("FIXME: start creating client")
         from parityos.services.client import HTTPClient
+        print("FIXME: import HTTPClient")
         client = HTTPClient(username=username, host=base_url)
         print("FIXME: done creating client")
         return client
     except:
+        print("FIXME: error! return None.")
         return None
 
 print("FIXME: parityos_wrapper end module")

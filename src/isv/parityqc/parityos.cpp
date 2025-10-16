@@ -54,6 +54,7 @@ void local_set_device_status(QDMI_Device_Status status) {
 
 /// FIXME: check if this is true.
 /// FIXME: setting the initial value is a bit indirect. We should put all the
+/// FIXME: actually relevant for testing, document somewhere!
 /// python stuff into one object for better resource management.
 ///
 /// It can happen that our device is called from a python process. E.g. if the
