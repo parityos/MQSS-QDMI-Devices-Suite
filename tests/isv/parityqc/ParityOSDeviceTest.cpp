@@ -2,6 +2,7 @@
 
 #include "parityos_qdmi/device.h"
 #include "qdmi/constants.h"
+#include <cstdlib>
 #include <gtest/gtest.h>
 
 // FIXME: better test setup? Currently we need
@@ -11,6 +12,15 @@
 
 class QDMIImplementationTest : public ::testing::Test {
 private:
+  static void assert_parityos_pass_is_set_or_exit(const char* username) {
+    auto pass_var = "PARITYOS_PASS";
+    auto pass = std::getenv(pass_var);
+    if (!pass) {
+      std::cerr << "\nERROR: Please export `" << pass_var << "` into your environment. It should contain the parityos password of the user `" << username << "` which is used for testing." << std::endl;
+      exit(1);
+    }
+  }
+
 protected:
   static ParityOS_QDMI_Device_Session session;
 
@@ -18,6 +28,8 @@ protected:
     const char *baseurl =
         "http://localhost:8000/v3"; // FIXME: make it configurable?
     const char *username = "admin"; // FIXME: better name (e.g. testuser)?
+
+    assert_parityos_pass_is_set_or_exit(username);
 
     // This function *must* be called first (and exactly once):
     ASSERT_EQ(ParityOS_QDMI_device_initialize(), QDMI_SUCCESS)
