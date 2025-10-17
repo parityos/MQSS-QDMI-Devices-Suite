@@ -263,17 +263,13 @@ struct ParityOS_QDMI_Device_Job_impl_d {
   QDMI_Program_Format format = QDMI_PROGRAM_FORMAT_CUSTOM1;
   /// TODO: This will probaly contain parityqc problem representation in json
   /// format
-  void *program = nullptr;
+  std::string program;
 
   /// TODO: add more fields as needed.
 
   ParityOS_QDMI_Device_Job_impl_d(const ParityOS_QDMI_Device_Session session_)
       : session(session_), id(42) {
     assert(session != nullptr && "session must not be null");
-  }
-
-  ~ParityOS_QDMI_Device_Job_impl_d() {
-    delete[] static_cast<char *>(program); // if allocated with new[]
   }
 };
 
@@ -407,8 +403,6 @@ int ParityOS_QDMI_device_session_create_device_job(
     return QDMI_ERROR_BADSTATE;
   }
 
-  /// FIXME: probably want to create some meaningful job here (can be a dummy)
-
   *job = new ParityOS_QDMI_Device_Job_impl_d(session);
 
   return QDMI_SUCCESS;
@@ -457,8 +451,7 @@ int ParityOS_QDMI_device_job_set_parameter(
     return QDMI_SUCCESS;
   case QDMI_DEVICE_JOB_PARAMETER_PROGRAM:
     if (value != nullptr) {
-      job->program = new char[size];
-      memcpy(job->program, value, size);
+      job->program = std::string(static_cast<const char *>(value), size);
     }
     return QDMI_SUCCESS;
   default:
@@ -498,10 +491,6 @@ int ParityOS_QDMI_device_job_submit(ParityOS_QDMI_Device_Job job) {
   if (job == nullptr || job->status != QDMI_JOB_STATUS_CREATED) {
     return QDMI_ERROR_INVALIDARGUMENT;
   }
-
-  // Not explicitly mentioned by interface:
-  if (job->status != QDMI_JOB_STATUS_CREATED || job->program == nullptr)
-    return QDMI_ERROR_INVALIDARGUMENT;
 
   job->status = QDMI_JOB_STATUS_SUBMITTED;
 

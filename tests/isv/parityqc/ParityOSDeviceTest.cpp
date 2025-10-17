@@ -126,7 +126,7 @@ TEST_F(QDMIImplementationTest, JobQueryPropertyImplemented) {
                 job, QDMI_DEVICE_JOB_PROPERTY_MAX, 0, nullptr, nullptr),
             QDMI_ERROR_INVALIDARGUMENT);
 
-  /// TODO: more checks (possibly in dedicated TEST)
+  /// TODO: more checks (maybe in dedicated TEST)
 
   ParityOS_QDMI_device_job_free(job);
 }
@@ -136,8 +136,24 @@ TEST_F(QDMIImplementationTest, JobSubmitImplemented) {
   ASSERT_EQ(ParityOS_QDMI_device_session_create_device_job(session, &job),
             QDMI_SUCCESS);
 
-  /// Without program we cannot submit the job:
-  ASSERT_EQ(ParityOS_QDMI_device_job_submit(job), QDMI_ERROR_INVALIDARGUMENT);
+  /// Without job submission fails:
+  ASSERT_EQ(ParityOS_QDMI_device_job_submit(nullptr),
+            QDMI_ERROR_INVALIDARGUMENT);
+
+  const auto format = QDMI_PROGRAM_FORMAT_CUSTOM1;
+  ASSERT_EQ(ParityOS_QDMI_device_job_set_parameter(
+                job, QDMI_DEVICE_JOB_PARAMETER_PROGRAMFORMAT, sizeof(format),
+                &format),
+            QDMI_SUCCESS);
+
+  std::string program = "{ \"content\": \"hello\" }";
+  ASSERT_EQ(
+      ParityOS_QDMI_device_job_set_parameter(
+          job, QDMI_DEVICE_JOB_PARAMETER_PROGRAM, program.size(), &program),
+      QDMI_SUCCESS);
+
+  /// Now it should work
+  ASSERT_EQ(ParityOS_QDMI_device_job_submit(job), QDMI_SUCCESS);
 
   ParityOS_QDMI_device_job_free(job);
 }
