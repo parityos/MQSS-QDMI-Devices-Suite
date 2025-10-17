@@ -21,12 +21,41 @@
 //===----------------------------------------------------------------------===//
 
 namespace {
+
 /// Environment variable containing absolute path to the folder containing all
 /// relevant python scripts.
 #define SCRIPT_PATH "PARITYQC_SCRIPT_PATH"
 /// Environment variable containing basename of the python script without
 /// extension (e.g. `my_script`, not `my_script.py`).
 #define SCRIPT_NAME "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME"
+
+/// FIXME: check if this is true.
+/// FIXME: setting the initial value is a bit indirect. We should put all the
+/// FIXME: actually relevant for testing, document somewhere!
+/// python stuff into one object for better resource management.
+///
+/// It can happen that our device is called from a python process. E.g. if the
+/// driver is implemented in python. Certain code paths depend on that.
+bool is_from_python() {
+  static bool is_initialized = Py_IsInitialized() != 0;
+  return is_initialized;
+}
+
+/// RAII pattern to manage python's global interpreter lock (GIL).
+struct GilGuard {
+  GilGuard() : gstate(PyGILState_LOCKED) {
+    if (!is_from_python()) /// FIXME: needed?
+      gstate = PyGILState_Ensure();
+  }
+
+  ~GilGuard() {
+    if (!is_from_python())
+      PyGILState_Release(gstate);
+  }
+
+private:
+  PyGILState_STATE gstate;
+};
 
 /// FIXME: do we want that?
 /// NOTE: For ease of discoverability we prefix private functions with `local_`.
@@ -55,33 +84,15 @@ void local_set_device_status(QDMI_Device_Status status) {
   *local_get_device_status() = status;
 }
 
-/// FIXME: check if this is true.
-/// FIXME: setting the initial value is a bit indirect. We should put all the
-/// FIXME: actually relevant for testing, document somewhere!
-/// python stuff into one object for better resource management.
-///
-/// It can happen that our device is called from a python process. E.g. if the
-/// driver is implemented in python. Certain code paths depend on that.
-bool is_from_python() {
-  static bool is_initialized = Py_IsInitialized() != 0;
-  return is_initialized;
-}
-
 /** @brief Checks if there is a python related error.
  *
  * This macro checks whether the `value` is `nullptr` or `Py_None`. If it is, it
  * returns a `QDMI_ERROR_FATAL`.
- *
- * It also auto-detects whether it needs to release the gil.
  */
 #define CHECK_PYTHON_ERROR(value)                                              \
   {                                                                            \
     if (value == Py_None || value == nullptr) {                                \
-                                                                               \
       PyErr_Print();                                                           \
-      if (!is_from_python()) {                                                 \
-        PyGILState_Release(gstate);                                            \
-      }                                                                        \
       return QDMI_ERROR_FATAL;                                                 \
     }                                                                          \
   }
@@ -105,14 +116,12 @@ int initialize_python() {
   assert(script_path && "Missing script path");
   assert(script_name && "Missing script name");
 
-  // Arbitrary and irrelevant initial value for `gstate` to suppress
-  // `-Wmaybe-uninitialized`.
-  PyGILState_STATE gstate = PyGILState_LOCKED;
   if (!is_from_python()) {
     Py_Initialize();
     PyThreadState *_save = PyEval_SaveThread();
-    gstate = PyGILState_Ensure();
   }
+
+  auto _gil_quard = GilGuard();
 
   PyObject *sys = PyImport_ImportModule("sys");
   PyObject *sys_path = PyObject_GetAttrString(sys, "path");
@@ -130,9 +139,6 @@ int initialize_python() {
 
   Py_XDECREF(pName);
 
-  if (!is_from_python())
-    PyGILState_Release(gstate);
-
   return QDMI_SUCCESS;
 }
 
@@ -140,8 +146,7 @@ int initialize_python() {
 /// signature).
 QDMI_STATUS create_parityos_client(PyObject **out, std::string_view username,
                                    std::string_view base_url) {
-  // FIXME: why is it here OK to grab the GIL state without check?
-  PyGILState_STATE gstate = PyGILState_Ensure();
+  auto _gil_quard = GilGuard();
 
   // FIXME: we should distinguish FATAL from PERMISSION DENIED errors.
 
@@ -157,7 +162,6 @@ QDMI_STATUS create_parityos_client(PyObject **out, std::string_view username,
   CHECK_PYTHON_ERROR(pResult);
 
   *out = pResult;
-  PyGILState_Release(gstate);
   return QDMI_SUCCESS;
 }
 
@@ -237,9 +241,8 @@ struct ParityOS_QDMI_Device_Session_impl_d {
   bool has_auth_data() { return base_url != "" && username != ""; }
 
   ~ParityOS_QDMI_Device_Session_impl_d() {
-    auto gstate = PyGILState_Ensure();
+    auto _gil_quard = GilGuard();
     Py_XDECREF(client);
-    PyGILState_Release(gstate);
   }
 };
 
@@ -284,21 +287,6 @@ struct ParityOS_QDMI_Operation_impl_d {};
 // Private code 2/2
 //===----------------------------------------------------------------------===//
 
-/// FIXME: implement this
-class SafeGIL {
-  SafeGIL() : gstate(PyGILState_LOCKED) {
-    if (!is_from_python()) /// FIXME: needed?
-      gstate = PyGILState_Ensure();
-  }
-
-  ~SafeGIL() {
-    if (!is_from_python())
-      PyGILState_Release(gstate);
-  }
-
-  PyGILState_STATE gstate;
-};
-
 /// FIXME: docstring
 QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
   assert(job && "job must not be null");
@@ -307,10 +295,7 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
 
   job->status = QDMI_JOB_STATUS_SUBMITTED;
 
-  PyGILState_STATE gstate = PyGILState_LOCKED;
-
-  if (!is_from_python()) /// FIXME: needed?
-    gstate = PyGILState_Ensure();
+  auto _gil_quard = GilGuard();
 
   PyObject *py_module = *get_parityos_module();
 
@@ -337,9 +322,6 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
   }
   /// FIXME: store submission_id into job.
 
-  if (!is_from_python())
-    PyGILState_Release(gstate);
-
   return QDMI_SUCCESS;
 }
 
@@ -351,19 +333,14 @@ std::optional<std::string> get_result(ParityOS_QDMI_Device_Job job) {
   assert(job->status <= QDMI_JOB_STATUS_DONE &&
          "job must be in a normal state");
 
-  /// FIXME: Should I use a RAII pattern for the gstate?
-  PyGILState_STATE gstate = PyGILState_LOCKED;
-
-  if (!is_from_python()) /// FIXME: needed?
-    gstate = PyGILState_Ensure();
+  auto _gil_quard = GilGuard();
 
   PyObject *py_module = *get_parityos_module();
 
   // PyObject *pFunc = PyObject_GetAttrString(py_module, "get_result");
   // CHECK_PYTHON_ERROR(pFunc);
 
-  if (!is_from_python())
-    PyGILState_Release(gstate);
+  /// FIXME: go on here
 
   return std::nullopt;
 }
