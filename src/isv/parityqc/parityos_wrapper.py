@@ -62,7 +62,7 @@ def _next_submission_id():
     global _gen
 
     def make_gen():
-        i = 0
+        i = 42
         while True:
             yield i
             i += 1

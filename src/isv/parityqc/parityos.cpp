@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <cstddef>
 #include <cstdlib>
+#include <optional>
 #include <parityos_qdmi/device.h>
 #include <string>
 #include <string_view>
@@ -256,16 +257,16 @@ struct ParityOS_QDMI_Device_Job_impl_d {
   // Mutable fields:
 
   QDMI_Job_Status status = QDMI_JOB_STATUS_CREATED;
-  /// TODO: Here we probably need a *custom* (json) format. We probably cannot
+  /// Custom json format for the problem representation. We probably cannot
   /// validate at this point if the format is consistent with program. I think
   /// it is OK that the service just returns an error if the program is not as
   /// the format claims.
   QDMI_Program_Format format = QDMI_PROGRAM_FORMAT_CUSTOM1;
-  /// TODO: This will probaly contain parityqc problem representation in json
+  /// ParityQC problem representation in json
   /// format
   std::string program;
 
-  /// TODO: add more fields as needed.
+  /// FIXME: result
 
   ParityOS_QDMI_Device_Job_impl_d(const ParityOS_QDMI_Device_Session session_)
       : session(session_), id(42) {
@@ -283,6 +284,21 @@ struct ParityOS_QDMI_Operation_impl_d {};
 // Private code 2/2
 //===----------------------------------------------------------------------===//
 
+/// FIXME: implement this
+class SafeGIL {
+  SafeGIL() : gstate(PyGILState_LOCKED) {
+    if (!is_from_python()) /// FIXME: needed?
+      gstate = PyGILState_Ensure();
+  }
+
+  ~SafeGIL() {
+    if (!is_from_python())
+      PyGILState_Release(gstate);
+  }
+
+  PyGILState_STATE gstate;
+};
+
 /// FIXME: docstring
 QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
   assert(job && "job must not be null");
@@ -291,7 +307,7 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
 
   job->status = QDMI_JOB_STATUS_SUBMITTED;
 
-  PyGILState_STATE gstate;
+  PyGILState_STATE gstate = PyGILState_LOCKED;
 
   if (!is_from_python()) /// FIXME: needed?
     gstate = PyGILState_Ensure();
@@ -325,6 +341,31 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
     PyGILState_Release(gstate);
 
   return QDMI_SUCCESS;
+}
+
+/// FIXME: docstring, can also be used to just check the result if it is
+/// available.
+std::optional<std::string> get_result(ParityOS_QDMI_Device_Job job) {
+  assert(job && "job must not be null");
+  assert(job->status >= QDMI_JOB_STATUS_SUBMITTED && "job must be submitted");
+  assert(job->status <= QDMI_JOB_STATUS_DONE &&
+         "job must be in a normal state");
+
+  /// FIXME: Should I use a RAII pattern for the gstate?
+  PyGILState_STATE gstate = PyGILState_LOCKED;
+
+  if (!is_from_python()) /// FIXME: needed?
+    gstate = PyGILState_Ensure();
+
+  PyObject *py_module = *get_parityos_module();
+
+  // PyObject *pFunc = PyObject_GetAttrString(py_module, "get_result");
+  // CHECK_PYTHON_ERROR(pFunc);
+
+  if (!is_from_python())
+    PyGILState_Release(gstate);
+
+  return std::nullopt;
 }
 
 //===----------------------------------------------------------------------===//
@@ -576,14 +617,20 @@ int ParityOS_QDMI_device_job_check(ParityOS_QDMI_Device_Job job,
 }
 
 int ParityOS_QDMI_device_job_wait(ParityOS_QDMI_Device_Job job,
-                                  [[maybe_unused]] const size_t timeout) {
+                                  const size_t timeout) {
   if (job == nullptr) {
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  if (job->status == QDMI_JOB_STATUS_RUNNING) {
-    /// FIXME: implement properly!
+  if (timeout != 0) {
+    return QDMI_ERROR_NOTSUPPORTED;
+  }
+
+  if (job->status <= QDMI_JOB_STATUS_DONE) {
+    /// FIXME: implement properly!!!!!!!!
+    auto res = get_result(job); /// FIXME: check res
     job->status = QDMI_JOB_STATUS_DONE;
+    return QDMI_SUCCESS;
   }
 
   return QDMI_ERROR_FATAL;
@@ -602,11 +649,13 @@ int ParityOS_QDMI_device_job_get_results(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  /// FIXME: implement getting the job result
+  /// FIXME: implement getting the job result!!!!!
 
   switch (result) {
-  case QDMI_JOB_RESULT_CUSTOM1:
-    /// TODO: we need custom results right now as nothing else fits.
+  case QDMI_JOB_RESULT_CUSTOM1: {
+    // auto res = get_result(job); /// FIXME: check res
+    return QDMI_SUCCESS;
+  }
   default:
     return QDMI_ERROR_NOTSUPPORTED;
   }
