@@ -16,7 +16,7 @@
 #include <string_view>
 
 //===----------------------------------------------------------------------===//
-// Private code
+// Private code 1/2
 //===----------------------------------------------------------------------===//
 
 namespace {
@@ -280,6 +280,54 @@ struct ParityOS_QDMI_Site_impl_d {};
 struct ParityOS_QDMI_Operation_impl_d {};
 
 //===----------------------------------------------------------------------===//
+// Private code 2/2
+//===----------------------------------------------------------------------===//
+
+/// FIXME: docstring
+QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
+  assert(job && "job must not be null");
+  assert(job->session->status == SESSION_STATUS::INITIALIZED &&
+         "session not initialized");
+
+  job->status = QDMI_JOB_STATUS_SUBMITTED;
+
+  PyGILState_STATE gstate;
+
+  if (!is_from_python()) /// FIXME: needed?
+    gstate = PyGILState_Ensure();
+
+  PyObject *py_module = *get_parityos_module();
+
+  PyObject *pFunc = PyObject_GetAttrString(py_module, "submit_job");
+  CHECK_PYTHON_ERROR(pFunc);
+
+  /// FIXME: check we hold the client
+
+  /// TODO: Double check with program format if it is meant to be json.
+  PyObject *json_string = PyUnicode_FromString(job->program.c_str());
+  CHECK_PYTHON_ERROR(json_string);
+
+  PyObject *pArgs = PyTuple_Pack(2, job->session->client, json_string);
+  CHECK_PYTHON_ERROR(pArgs);
+
+  job->status = QDMI_JOB_STATUS_RUNNING;
+  local_set_device_status(QDMI_DEVICE_STATUS_BUSY); /// FIXME: really needed?
+
+  PyObject *p_submission_id = PyObject_CallObject(pFunc, pArgs);
+  CHECK_PYTHON_ERROR(p_submission_id);
+  unsigned long long submission_id = PyLong_AsUnsignedLongLong(p_submission_id);
+  if (PyErr_Occurred()) {
+    return QDMI_ERROR_FATAL;
+  }
+  /// FIXME: store submission_id into job.
+
+  if (!is_from_python())
+    PyGILState_Release(gstate);
+
+  return QDMI_SUCCESS;
+}
+
+//===----------------------------------------------------------------------===//
 // QDMI device API implementation
 //===----------------------------------------------------------------------===//
 
@@ -492,19 +540,9 @@ int ParityOS_QDMI_device_job_submit(ParityOS_QDMI_Device_Job job) {
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  job->status = QDMI_JOB_STATUS_SUBMITTED;
+  CHECK_QDMI_ERROR(submit_job(job));
 
-  /// FIXME: here we have to reach out to our python client. We probably want an
-  /// async call here. The interface itself allows both: sync and async.
-  int err = 1;
-
-  if (err) {
-    /// Here I assume that err means that submission itself failed.
-    job->status = QDMI_JOB_STATUS_FAILED;
-    return QDMI_ERROR_FATAL;
-  }
-
-  /// TODO: Not exactly sure what "busy" should mean and how to make sure it is
+  /// FIXME: Not exactly sure what "busy" should mean and how to make sure it is
   /// reset reliably once the computation comes back.
   local_set_device_status(QDMI_DEVICE_STATUS_BUSY);
 
@@ -543,7 +581,11 @@ int ParityOS_QDMI_device_job_wait(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  /// FIXME: implement wait for job properly (maybe)
+  if (job->status == QDMI_JOB_STATUS_RUNNING) {
+    /// FIXME: implement properly!
+    job->status = QDMI_JOB_STATUS_DONE;
+  }
+
   return QDMI_ERROR_FATAL;
 }
 

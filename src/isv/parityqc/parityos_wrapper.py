@@ -25,9 +25,10 @@ def create_parityos_client(username: str, base_url: str) -> Optional["HTTPClient
 
 
 # FIXME: docstring
-def submit_job(program: str) -> int | None:
-    # TODO: this is still a fake implementation.
+def submit_job(client: "HTTPClient", program: str) -> int | None:
+    # TODO: this is still a fake implementation. The real one would use the client.
     try:
+        assert client is not None, "missing client"
         import json
         parsed = json.loads(program)
         assert "content" in parsed

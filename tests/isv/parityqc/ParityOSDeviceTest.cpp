@@ -147,10 +147,10 @@ TEST_F(QDMIImplementationTest, JobSubmitImplemented) {
             QDMI_SUCCESS);
 
   std::string program = "{ \"content\": \"hello\" }";
-  ASSERT_EQ(
-      ParityOS_QDMI_device_job_set_parameter(
-          job, QDMI_DEVICE_JOB_PARAMETER_PROGRAM, program.size(), &program),
-      QDMI_SUCCESS);
+  ASSERT_EQ(ParityOS_QDMI_device_job_set_parameter(
+                job, QDMI_DEVICE_JOB_PARAMETER_PROGRAM, program.size(),
+                program.data()),
+            QDMI_SUCCESS);
 
   /// Now it should work
   ASSERT_EQ(ParityOS_QDMI_device_job_submit(job), QDMI_SUCCESS);
