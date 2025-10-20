@@ -137,6 +137,9 @@ TEST_F(ParityOSDeviceTest, JobQueryPropertyImplemented) {
 
 class JobTest : public ParityOSDeviceTest {
 protected:
+  static const std::string program;
+  static const std::string result;
+
   ParityOS_QDMI_Device_Job job = nullptr;
 
   void SetUp() override {
@@ -149,7 +152,6 @@ protected:
                   &format),
               QDMI_SUCCESS);
 
-    std::string program = "{ \"content\": \"hello\" }";
     ASSERT_EQ(ParityOS_QDMI_device_job_set_parameter(
                   job, QDMI_DEVICE_JOB_PARAMETER_PROGRAM, program.size(),
                   program.data()),
@@ -160,6 +162,9 @@ protected:
 
   void TearDown() override { ParityOS_QDMI_device_job_free(job); }
 };
+
+const std::string JobTest::program = "{ \"content\": \"hello\" }";
+const std::string JobTest::result = "is english";
 
 TEST_F(JobTest, Cancel) {
   ASSERT_EQ(ParityOS_QDMI_device_job_cancel(nullptr),
@@ -184,12 +189,24 @@ TEST_F(JobTest, Wait) {
 }
 
 TEST_F(JobTest, GetResults) {
+  /// You first have to wait so that the job gets into the DONE status.
+  ASSERT_EQ(ParityOS_QDMI_device_job_wait(job, 0), QDMI_SUCCESS);
+
   /// FIXME: more tests on invalid input
   ASSERT_EQ(ParityOS_QDMI_device_job_get_results(job, QDMI_JOB_RESULT_MAX, 0,
                                                  nullptr, nullptr),
             QDMI_ERROR_INVALIDARGUMENT);
 
-  /// FIXME: check actual result
+  size_t size_ret;
+  ASSERT_EQ(ParityOS_QDMI_device_job_get_results(job, QDMI_JOB_RESULT_CUSTOM1,
+                                                 0, nullptr, &size_ret),
+            QDMI_SUCCESS);
+  ASSERT_EQ(size_ret, result.size() + 1); // including \0
+  std::string data(size_ret - 1, '\0');
+  ASSERT_EQ(ParityOS_QDMI_device_job_get_results(
+                job, QDMI_JOB_RESULT_CUSTOM1, size_ret, data.data(), nullptr),
+            QDMI_SUCCESS);
+  ASSERT_EQ(data, result);
 }
 
 TEST_F(ParityOSDeviceTest, QueryDevicePropertyImplemented) {

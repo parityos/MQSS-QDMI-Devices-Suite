@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <cstddef>
 #include <cstdlib>
+#include <optional>
 #include <parityos_qdmi/device.h>
 #include <string>
 #include <string_view>
@@ -267,8 +268,8 @@ struct ParityOS_QDMI_Device_Job_impl_d {
   /// Gets a valid (strictly positive) value only after the job is submitted
   /// (status).
   unsigned long long submission_id = 0;
-
-  /// FIXME: result
+  /// A quake circuit solving the problem. TODO: In what sense (QAOA etc.)?
+  std::string result;
 
   ParityOS_QDMI_Device_Job_impl_d(const ParityOS_QDMI_Device_Session session_)
       : session(session_) {
@@ -326,7 +327,8 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
 
 /// FIXME: docstring, can also be used to just check the result if it is
 /// available.
-QDMI_STATUS get_result(std::string &result, ParityOS_QDMI_Device_Job job) {
+QDMI_STATUS get_result(std::optional<std::string> &result,
+                       ParityOS_QDMI_Device_Job job) {
   assert(job && "job must not be null");
   assert(job->status >= QDMI_JOB_STATUS_SUBMITTED && "job must be submitted");
   assert(job->status <= QDMI_JOB_STATUS_DONE &&
@@ -347,7 +349,7 @@ QDMI_STATUS get_result(std::string &result, ParityOS_QDMI_Device_Job job) {
   PyObject *py_result = PyObject_CallObject(pFunc, pArgs);
 
   if (py_result == Py_None) {
-    result = nullptr;
+    result = std::nullopt;
     return QDMI_SUCCESS;
   }
 
@@ -611,12 +613,21 @@ int ParityOS_QDMI_device_job_wait(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_NOTSUPPORTED;
   }
 
-  if (job->status <= QDMI_JOB_STATUS_DONE) {
+  if (job->status == QDMI_JOB_STATUS_DONE) {
+    return QDMI_SUCCESS;
+  }
+
+  if (job->status < QDMI_JOB_STATUS_DONE) {
     /// TODO: At the moment the job is synchronous so we only have to retrieve
     /// the result without error.
-    std::string _res;
-    CHECK_QDMI_ERROR(get_result(_res, job));
-    job->status = QDMI_JOB_STATUS_DONE;
+    std::optional<std::string> maybe_result;
+    CHECK_QDMI_ERROR(get_result(maybe_result, job));
+
+    if (maybe_result.has_value()) {
+      job->status = QDMI_JOB_STATUS_DONE;
+      job->result = maybe_result.value();
+    }
+
     return QDMI_SUCCESS;
   }
 
@@ -636,11 +647,19 @@ int ParityOS_QDMI_device_job_get_results(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  /// FIXME: implement getting the job result!!!!!
-
   switch (result) {
   case QDMI_JOB_RESULT_CUSTOM1: {
-    // auto res = get_result(job); /// FIXME: check res
+    auto result_size = job->result.size() + 1; // including \0 terminator
+    if (data != nullptr && size < result_size) {
+      return QDMI_ERROR_INVALIDARGUMENT;
+    }
+
+    if (size_ret)
+      *size_ret = result_size;
+
+    if (data)
+      memcpy(data, job->result.data(), size);
+
     return QDMI_SUCCESS;
   }
   default:
