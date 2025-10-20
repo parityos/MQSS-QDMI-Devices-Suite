@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <cstddef>
 #include <cstdlib>
-#include <optional>
 #include <parityos_qdmi/device.h>
 #include <string>
 #include <string_view>
@@ -314,9 +313,10 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
   job->status = QDMI_JOB_STATUS_RUNNING;
   local_set_device_status(QDMI_DEVICE_STATUS_BUSY); /// FIXME: really needed?
 
-  PyObject *p_submission_id = PyObject_CallObject(pFunc, pArgs);
-  CHECK_PYTHON_ERROR(p_submission_id);
-  unsigned long long submission_id = PyLong_AsUnsignedLongLong(p_submission_id);
+  PyObject *py_submission_id = PyObject_CallObject(pFunc, pArgs);
+  CHECK_PYTHON_ERROR(py_submission_id);
+  unsigned long long submission_id =
+      PyLong_AsUnsignedLongLong(py_submission_id);
   if (PyErr_Occurred()) {
     return QDMI_ERROR_FATAL;
   }
@@ -327,7 +327,7 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
 
 /// FIXME: docstring, can also be used to just check the result if it is
 /// available.
-std::optional<std::string> get_result(ParityOS_QDMI_Device_Job job) {
+QDMI_STATUS get_result(std::string &result, ParityOS_QDMI_Device_Job job) {
   assert(job && "job must not be null");
   assert(job->status >= QDMI_JOB_STATUS_SUBMITTED && "job must be submitted");
   assert(job->status <= QDMI_JOB_STATUS_DONE &&
@@ -337,12 +337,28 @@ std::optional<std::string> get_result(ParityOS_QDMI_Device_Job job) {
 
   PyObject *py_module = *get_parityos_module();
 
-  // PyObject *pFunc = PyObject_GetAttrString(py_module, "get_result");
-  // CHECK_PYTHON_ERROR(pFunc);
+  PyObject *pFunc = PyObject_GetAttrString(py_module, "get_result");
+  CHECK_PYTHON_ERROR(pFunc);
 
-  /// FIXME: go on here
+  PyObject *py_submission_id = PyLong_FromLong(42); // FIXME
 
-  return std::nullopt;
+  PyObject *pArgs = PyTuple_Pack(1, py_submission_id);
+  CHECK_PYTHON_ERROR(pArgs);
+
+  PyObject *py_result = PyObject_CallObject(pFunc, pArgs);
+
+  if (py_result == Py_None) {
+    result = nullptr;
+    return QDMI_SUCCESS;
+  }
+
+  if (!PyUnicode_Check(py_result)) {
+    return QDMI_ERROR_FATAL;
+  }
+
+  result = PyUnicode_AsUTF8(py_result);
+
+  return QDMI_SUCCESS;
 }
 
 //===----------------------------------------------------------------------===//
@@ -604,8 +620,10 @@ int ParityOS_QDMI_device_job_wait(ParityOS_QDMI_Device_Job job,
   }
 
   if (job->status <= QDMI_JOB_STATUS_DONE) {
-    /// FIXME: implement properly!!!!!!!!
-    auto res = get_result(job); /// FIXME: check res
+    /// TODO: At the moment the job is synchronous so we only have to retrieve
+    /// the result without error.
+    std::string _res;
+    CHECK_QDMI_ERROR(get_result(_res, job));
     job->status = QDMI_JOB_STATUS_DONE;
     return QDMI_SUCCESS;
   }
