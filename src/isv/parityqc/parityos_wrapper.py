@@ -62,7 +62,7 @@ def _next_submission_id():
     global _gen
 
     def make_gen():
-        i = 42
+        i = 42 # arbitrary strictly positive number
         while True:
             yield i
             i += 1

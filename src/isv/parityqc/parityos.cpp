@@ -252,9 +252,6 @@ struct ParityOS_QDMI_Device_Job_impl_d {
 
   /// NOTE: Session *not* managed by this object!
   const ParityOS_QDMI_Device_Session session = nullptr;
-  /// TODO: In case we need an id it probably should be universally unique (e.g.
-  /// uuid).
-  const int id = -1;
 
   // Mutable fields:
 
@@ -267,11 +264,14 @@ struct ParityOS_QDMI_Device_Job_impl_d {
   /// ParityQC problem representation in json
   /// format
   std::string program;
+  /// Gets a valid (strictly positive) value only after the job is submitted
+  /// (status).
+  unsigned long long submission_id = 0;
 
   /// FIXME: result
 
   ParityOS_QDMI_Device_Job_impl_d(const ParityOS_QDMI_Device_Session session_)
-      : session(session_), id(42) {
+      : session(session_) {
     assert(session != nullptr && "session must not be null");
   }
 };
@@ -315,8 +315,7 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
 
   PyObject *py_submission_id = PyObject_CallObject(pFunc, pArgs);
   CHECK_PYTHON_ERROR(py_submission_id);
-  unsigned long long submission_id =
-      PyLong_AsUnsignedLongLong(py_submission_id);
+  job->submission_id = PyLong_AsUnsignedLongLong(py_submission_id);
   if (PyErr_Occurred()) {
     return QDMI_ERROR_FATAL;
   }
@@ -340,7 +339,7 @@ QDMI_STATUS get_result(std::string &result, ParityOS_QDMI_Device_Job job) {
   PyObject *pFunc = PyObject_GetAttrString(py_module, "get_result");
   CHECK_PYTHON_ERROR(pFunc);
 
-  PyObject *py_submission_id = PyLong_FromLong(42); // FIXME
+  PyObject *py_submission_id = PyLong_FromUnsignedLongLong(job->submission_id);
 
   PyObject *pArgs = PyTuple_Pack(1, py_submission_id);
   CHECK_PYTHON_ERROR(pArgs);
@@ -557,7 +556,7 @@ int ParityOS_QDMI_device_job_query_property(ParityOS_QDMI_Device_Job job,
 
   /// FIXME: should I already do something in the job query interface?
 
-  const auto id_str = std::to_string(job->id);
+  const auto id_str = std::to_string(job->submission_id);
 
   ADD_STRING_PROPERTY(QDMI_DEVICE_JOB_PROPERTY_ID, id_str.c_str(), prop, size,
                       value, size_ret)
@@ -588,11 +587,8 @@ int ParityOS_QDMI_device_job_cancel(ParityOS_QDMI_Device_Job job) {
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  /// FIXME: can we cancel our jobs?
-
-  job->status = QDMI_JOB_STATUS_CANCELED;
-  local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
-  return QDMI_SUCCESS;
+  /// TODO:
+  return QDMI_ERROR_NOTIMPLEMENTED;
 }
 
 int ParityOS_QDMI_device_job_check(ParityOS_QDMI_Device_Job job,
@@ -601,12 +597,8 @@ int ParityOS_QDMI_device_job_check(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  /// FIXME: implement this.
-  local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
-  job->status = QDMI_JOB_STATUS_FAILED;
-  *status = job->status;
-
-  return QDMI_SUCCESS;
+  /// TODO:
+  return QDMI_ERROR_NOTIMPLEMENTED;
 }
 
 int ParityOS_QDMI_device_job_wait(ParityOS_QDMI_Device_Job job,
