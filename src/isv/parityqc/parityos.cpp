@@ -57,9 +57,6 @@ private:
   PyGILState_STATE gstate;
 };
 
-/// FIXME: do we want that?
-/// NOTE: For ease of discoverability we prefix private functions with `local_`.
-
 enum class SESSION_STATUS {
   /// Session starts in allocated state.
   ALLOCATED,
@@ -68,21 +65,9 @@ enum class SESSION_STATUS {
   INITIALIZED,
 };
 
-/// FIXME: This was in the template. Document what the device status even means
-/// for us! After that check if this implementation really satisfies our
-/// specification.
-QDMI_Device_Status *local_get_device_status() {
-  static QDMI_Device_Status device_status = QDMI_DEVICE_STATUS_OFFLINE;
-  return &device_status;
-}
-
-QDMI_Device_Status local_read_device_status() {
-  return *local_get_device_status();
-}
-
-void local_set_device_status(QDMI_Device_Status status) {
-  *local_get_device_status() = status;
-}
+/// TODO: handle device status? For us not everything makes sense, but the
+/// following might make sense: OFFLINE, MAINTENANCE. Unfortunately there is
+/// nothing in there for "everything is fine".
 
 /** @brief Checks if there is a python related error.
  *
@@ -312,7 +297,6 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
   CHECK_PYTHON_ERROR(pArgs);
 
   job->status = QDMI_JOB_STATUS_RUNNING;
-  local_set_device_status(QDMI_DEVICE_STATUS_BUSY); /// FIXME: really needed?
 
   PyObject *py_submission_id = PyObject_CallObject(pFunc, pArgs);
   CHECK_PYTHON_ERROR(py_submission_id);
@@ -368,13 +352,10 @@ QDMI_STATUS get_result(std::optional<std::string> &result,
 
 int ParityOS_QDMI_device_initialize(void) {
   CHECK_QDMI_ERROR(initialize_python());
-  local_set_device_status(QDMI_DEVICE_STATUS_IDLE);
   return QDMI_SUCCESS;
 }
 
 int ParityOS_QDMI_device_finalize(void) {
-  local_set_device_status(QDMI_DEVICE_STATUS_OFFLINE);
-
   if (*get_parityos_module() != nullptr) {
     Py_DECREF(*get_parityos_module());
     *get_parityos_module() = nullptr;
@@ -408,15 +389,6 @@ void ParityOS_QDMI_device_session_free(ParityOS_QDMI_Device_Session session) {
 int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
   if (session == nullptr) {
     return QDMI_ERROR_INVALIDARGUMENT;
-  }
-
-  switch (local_read_device_status()) {
-  case QDMI_DEVICE_STATUS_ERROR:
-  case QDMI_DEVICE_STATUS_OFFLINE:
-  case QDMI_DEVICE_STATUS_MAINTENANCE:
-    return QDMI_ERROR_FATAL;
-  default:
-    break;
   }
 
   // After a session is successfully initialized we do not allow any further
@@ -577,10 +549,6 @@ int ParityOS_QDMI_device_job_submit(ParityOS_QDMI_Device_Job job) {
 
   CHECK_QDMI_ERROR(submit_job(job));
 
-  /// FIXME: Not exactly sure what "busy" should mean and how to make sure it is
-  /// reset reliably once the computation comes back.
-  local_set_device_status(QDMI_DEVICE_STATUS_BUSY);
-
   return QDMI_SUCCESS;
 }
 
@@ -688,11 +656,6 @@ int ParityOS_QDMI_device_session_query_device_property(
   // somewhere?
   ADD_STRING_PROPERTY(QDMI_DEVICE_PROPERTY_LIBRARYVERSION, "1.2.0", prop, size,
                       value, size_ret)
-
-  /// This is probably the only interesting info we can provide:
-  ADD_SINGLE_VALUE_PROPERTY(QDMI_DEVICE_PROPERTY_STATUS, QDMI_Device_Status,
-                            local_read_device_status(), prop, size, value,
-                            size_ret)
 
   // Anything else refers to a quantum computer.
   return QDMI_ERROR_NOTSUPPORTED;
