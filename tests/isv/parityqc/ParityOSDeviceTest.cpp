@@ -5,10 +5,15 @@
 #include <cstdlib>
 #include <gtest/gtest.h>
 
-// FIXME: better test setup? Currently we need
-// - hardcode the user to "admin"
-// - export PARITYOS_PASS=... for that user
-// - Run parityapi locally in a container.
+/**
+ * In order to run the test you should run a local installation of parityapi
+ * with specific user `testuser`. Certain environment variables should be set.
+ * Run the tests to see which ones.
+ */
+
+//===----------------------------------------------------------------------===//
+// Base: Setup and tear down device globally for all test cases.
+//===----------------------------------------------------------------------===//
 
 class ParityOSDeviceTest : public ::testing::Test {
 private:
@@ -86,6 +91,10 @@ protected:
 };
 
 ParityOS_QDMI_Device_Session ParityOSDeviceTest::session = nullptr;
+
+//===----------------------------------------------------------------------===//
+// Misc tests
+//===----------------------------------------------------------------------===//
 
 /// TODO: Below tests are mostly from the template folder of the QDMI repo.
 /// Once our device is implemented make sure everything is properly tested.
@@ -208,6 +217,10 @@ TEST_F(JobTest, GetResults) {
             QDMI_SUCCESS);
   ASSERT_EQ(data, result);
 }
+
+//===----------------------------------------------------------------------===//
+// Query tests
+//===----------------------------------------------------------------------===//
 
 TEST_F(ParityOSDeviceTest, QueryDevicePropertyImplemented) {
   ASSERT_EQ(ParityOS_QDMI_device_session_query_device_property(
