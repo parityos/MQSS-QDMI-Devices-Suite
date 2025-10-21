@@ -30,8 +30,8 @@ namespace {
 #define SCRIPT_NAME "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME"
 
 /// FIXME: check if this is true.
-/// FIXME: setting the initial value is a bit indirect. We should put all the
 /// FIXME: actually relevant for testing, document somewhere!
+/// FIXME: setting the initial value is a bit indirect. We should put all the
 /// python stuff into one object for better resource management.
 ///
 /// It can happen that our device is called from a python process. E.g. if the
