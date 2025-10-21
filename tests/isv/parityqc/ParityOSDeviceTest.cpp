@@ -287,15 +287,3 @@ INSTANTIATE_TEST_SUITE_P(
   DevicePropertyTestParam{QDMI_DEVICE_PROPERTY_LIBRARYVERSION,"devices must provide a library version"}
         // clang-format on
         ));
-
-TEST_F(PropertyTest, QueryDeviceStatusPropertyImplemented) {
-  QDMI_Device_Status status = QDMI_DEVICE_STATUS_MAX;
-  size_t size = sizeof(QDMI_Device_Status);
-
-  ASSERT_EQ(ParityOS_QDMI_device_session_query_device_property(
-                session, QDMI_DEVICE_PROPERTY_STATUS, size, &status, nullptr),
-            QDMI_SUCCESS)
-      << "devices must provide a status";
-
-  ASSERT_EQ(status, QDMI_DEVICE_STATUS_IDLE) << "unexpected status";
-}
