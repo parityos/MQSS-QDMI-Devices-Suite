@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <optional>
 #include <parityos_qdmi/device.h>
 #include <string>
@@ -29,13 +30,13 @@ namespace {
 /// extension (e.g. `my_script`, not `my_script.py`).
 #define SCRIPT_NAME "PARITYQC_PARITYOS_WRAPPER_SCRIPT_NAME"
 
-/// FIXME: check if this is true.
-/// FIXME: actually relevant for testing, document somewhere!
-/// FIXME: setting the initial value is a bit indirect. We should put all the
-/// python stuff into one object for better resource management.
+/// TODO: setting the initial value upon first usage is a bit indirect. We
+/// should put all the python stuff into one object for better resource
+/// management.
 ///
-/// It can happen that our device is called from a python process. E.g. if the
-/// driver is implemented in python. Certain code paths depend on that.
+/// It can happen that our device is called within a process which already runs
+/// python. In that case one must not initialize (and release) the python
+/// interpreter.
 bool is_from_python() {
   static bool is_initialized = Py_IsInitialized() != 0;
   return is_initialized;
@@ -44,14 +45,13 @@ bool is_from_python() {
 /// RAII pattern to manage python's global interpreter lock (GIL).
 struct GilGuard {
   GilGuard() : gstate(PyGILState_LOCKED) {
-    if (!is_from_python()) /// FIXME: needed?
-      gstate = PyGILState_Ensure();
+    // NOTE: It is realistic that the API around PyGILState becomes deprecated
+    // (see https://peps.python.org/pep-0788/, as of writing this the pep is
+    // still a draft).
+    gstate = PyGILState_Ensure();
   }
 
-  ~GilGuard() {
-    if (!is_from_python())
-      PyGILState_Release(gstate);
-  }
+  ~GilGuard() { PyGILState_Release(gstate); }
 
 private:
   PyGILState_STATE gstate;
@@ -88,18 +88,23 @@ PyObject **get_parityos_module() {
   return &python_module;
 }
 
-/// FIXME: documentation
-int initialize_python() {
-  // const auto script_path = std::getenv(SCRIPT_PATH);
-  const auto script_path =
-      "/workspaces/MQSS-QDMI-Devices-Suite/src/isv/parityqc"; // FIXME: why is
-                                                              // env variable
-                                                              // not working?
+/**
+ * Call this function before any other python related functions.
+ *
+ * It checks if python is already initialized. If not it will initialize it.
+ * Then the parityos wrapper script is loaded and available via
+ * `get_parityos_module`.
+ */
+QDMI_STATUS initialize_python() {
+  const auto script_path = std::getenv(SCRIPT_PATH);
   const auto script_name = std::getenv(SCRIPT_NAME);
 
-  // FIXME: ERROR if envs not available. What about logging?
+  /// Useful for development. TODO: logger would be better for production.
   assert(script_path && "Missing script path");
   assert(script_name && "Missing script name");
+
+  if (std::strlen(script_path) == 0 || std::strlen(script_name) == 0)
+    return QDMI_ERROR_FATAL;
 
   if (!is_from_python()) {
     Py_Initialize();
@@ -117,8 +122,6 @@ int initialize_python() {
   CHECK_PYTHON_ERROR(pName);
 
   auto module = PyImport_Import(pName);
-  /// FIXME: it is probably better to return the module, this makes the code
-  /// clearer. We can then also skip one of the macros.
   *get_parityos_module() = module;
   CHECK_PYTHON_ERROR(*get_parityos_module());
 
@@ -133,7 +136,7 @@ QDMI_STATUS create_parityos_client(PyObject **out, std::string_view username,
                                    std::string_view base_url) {
   auto _gil_quard = GilGuard();
 
-  // FIXME: we should distinguish FATAL from PERMISSION DENIED errors.
+  /// TODO: we should distinguish FATAL from PERMISSION DENIED errors.
 
   PyObject *pFunc =
       PyObject_GetAttrString(*get_parityos_module(), "create_parityos_client");
@@ -272,7 +275,8 @@ struct ParityOS_QDMI_Operation_impl_d {};
 // Private code 2/2
 //===----------------------------------------------------------------------===//
 
-/// FIXME: docstring
+/// Call the python function with the same name and store the `submission_id` in
+/// the `job`.
 QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
   assert(job && "job must not be null");
   assert(job->session->status == SESSION_STATUS::INITIALIZED &&
@@ -286,8 +290,6 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
 
   PyObject *pFunc = PyObject_GetAttrString(py_module, "submit_job");
   CHECK_PYTHON_ERROR(pFunc);
-
-  /// FIXME: check we hold the client
 
   /// TODO: Double check with program format if it is meant to be json.
   PyObject *json_string = PyUnicode_FromString(job->program.c_str());
@@ -304,13 +306,22 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
   if (PyErr_Occurred()) {
     return QDMI_ERROR_FATAL;
   }
-  /// FIXME: store submission_id into job.
 
   return QDMI_SUCCESS;
 }
 
-/// FIXME: docstring, can also be used to just check the result if it is
-/// available.
+/** Call the python function of the same name.
+ *
+ * We call the parityos API to ask for the results of the job, using the
+ * submission id to identify it. If the result is not yet available result will
+ * contain a null option.
+ *
+ * TODO: The python side is not yet fully implemented, but once it is we intend
+ * to store the result locally in order to quickly retrieve it once we have
+ * already recieved it. That way you can use the function to test whether the
+ * result is available. Once it is you can be assured that retrieval will be
+ * quick.
+ */
 QDMI_STATUS get_result(std::optional<std::string> &result,
                        ParityOS_QDMI_Device_Job job) {
   assert(job && "job must not be null");
@@ -528,8 +539,6 @@ int ParityOS_QDMI_device_job_query_property(ParityOS_QDMI_Device_Job job,
     return QDMI_ERROR_INVALIDARGUMENT;
   }
 
-  /// FIXME: should I already do something in the job query interface?
-
   const auto id_str = std::to_string(job->submission_id);
 
   ADD_STRING_PROPERTY(QDMI_DEVICE_JOB_PROPERTY_ID, id_str.c_str(), prop, size,
@@ -646,10 +655,9 @@ int ParityOS_QDMI_device_session_query_device_property(
   /// TODO: we do not have terribly important info to provide. But those entries
   /// are just adhoc value. Reconsider them at some point.
 
-  // TODO: Bettern name?
   ADD_STRING_PROPERTY(QDMI_DEVICE_PROPERTY_NAME, "ParityOS", prop, size, value,
                       size_ret)
-  // FIXME: Version of parityos?
+  // TODO: Version of parityos?
   ADD_STRING_PROPERTY(QDMI_DEVICE_PROPERTY_VERSION, "3.0.0", prop, size, value,
                       size_ret)
   // TODO: Version of QDMI. Hardcode at implementation time? Retrieve from

@@ -1,9 +1,9 @@
 # ParityQC © 2025. See LICENSE.txt in /src/isv/parityqc/ for details.
 """
-TODO: Make sure parityos is available whenever this script is executed.
-
-FIXME: docstring
+Auxiliary script to conveniently use parityos functionality from parityos.cpp via the python API.
 """
+
+# TODO: Make sure parityos is installed whenever this script is executed.
 
 from typing import Optional
 
@@ -11,22 +11,29 @@ from typing import Optional
 submission_results: dict[int, str] = dict()
 
 
-# FIXME: docstring
 def create_parityos_client(username: str, base_url: str) -> Optional["HTTPClient"]:
+    """Create the parityos http client.
+
+    If the creation succeeds this implies that authentication worked.
+
+    It is expected that the password is set via an environment variable. If anything goes wrong it
+    returns `None` otherwise the client.
+    """
     try:
-        print("FIXME: start creating client")
         from parityos.services.client import HTTPClient
         client = HTTPClient(username=username, host=base_url)
-        print("FIXME: done creating client")
         return client
     except:
-        print("FIXME: error! return None.")
         return None
 
 
-# FIXME: docstring
+# TODO: this is still a fake implementation. The real one would use the client.
 def submit_job(client: "HTTPClient", program: str) -> int | None:
-    # TODO: this is still a fake implementation. The real one would use the client.
+    """Submit a program to the parityos web service to be compiled to a circuit.
+
+    It returns the submission id which can be used to identify the job results once they are
+    available. Returns `None` if anything goes wrong.
+    """
     try:
         assert client is not None, "missing client"
         import json
@@ -41,11 +48,15 @@ def submit_job(client: "HTTPClient", program: str) -> int | None:
 
         return submission_id
     except:
-        print("FIXME: error in job submission")
         return None
 
-# FIXME: docstring
+
+# TODO: this is still a fake implementation.
 def get_result(submission_id: int) -> str | None:
+    """Return the compilation result of a job or `None` if not available.
+
+    Right now it also returns `None` if anything goes wrong.
+    """
     try:
         global submission_results
         if submission_id in submission_results:

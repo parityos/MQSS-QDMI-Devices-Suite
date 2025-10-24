@@ -198,10 +198,9 @@ TEST_F(JobTest, Wait) {
 }
 
 TEST_F(JobTest, GetResults) {
-  /// You first have to wait so that the job gets into the DONE status.
+  /// You first have to wait so that the job transitions into the DONE status.
   ASSERT_EQ(ParityOS_QDMI_device_job_wait(job, 0), QDMI_SUCCESS);
 
-  /// FIXME: more tests on invalid input
   ASSERT_EQ(ParityOS_QDMI_device_job_get_results(job, QDMI_JOB_RESULT_MAX, 0,
                                                  nullptr, nullptr),
             QDMI_ERROR_INVALIDARGUMENT);
