@@ -73,6 +73,9 @@ enum class SESSION_STATUS {
  *
  * This macro checks whether the `value` is `nullptr` or `Py_None`. If it is, it
  * returns a `QDMI_ERROR_FATAL`.
+ *
+ * TODO: emitting FATAL on any error is not helpful for error diagnostics. Work
+ * out a better strategy to communicate the error.
  */
 #define CHECK_PYTHON_ERROR(value)                                              \
   {                                                                            \
@@ -83,7 +86,7 @@ enum class SESSION_STATUS {
   }
 
 /// Refers to the parityos wrapper script.
-PyObject **get_parityos_module() {
+PyObject **get_parityos_wrapper_module() {
   static PyObject *python_module = nullptr;
   return &python_module;
 }
@@ -121,9 +124,9 @@ QDMI_STATUS initialize_python() {
   PyObject *pName = PyUnicode_DecodeFSDefault(script_name);
   CHECK_PYTHON_ERROR(pName);
 
-  auto module = PyImport_Import(pName);
-  *get_parityos_module() = module;
-  CHECK_PYTHON_ERROR(*get_parityos_module());
+  auto py_module = PyImport_Import(pName);
+  *get_parityos_wrapper_module() = py_module;
+  CHECK_PYTHON_ERROR(*get_parityos_wrapper_module());
 
   Py_XDECREF(pName);
 
@@ -138,8 +141,8 @@ QDMI_STATUS create_parityos_client(PyObject **out, std::string_view username,
 
   /// TODO: we should distinguish FATAL from PERMISSION DENIED errors.
 
-  PyObject *pFunc =
-      PyObject_GetAttrString(*get_parityos_module(), "create_parityos_client");
+  PyObject *pFunc = PyObject_GetAttrString(*get_parityos_wrapper_module(),
+                                           "create_parityos_client");
   CHECK_PYTHON_ERROR(pFunc);
 
   PyObject *pArgs = PyTuple_Pack(2, PyUnicode_FromString(username.data()),
@@ -286,7 +289,7 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
 
   auto _gil_quard = GilGuard();
 
-  PyObject *py_module = *get_parityos_module();
+  PyObject *py_module = *get_parityos_wrapper_module();
 
   PyObject *pFunc = PyObject_GetAttrString(py_module, "submit_job");
   CHECK_PYTHON_ERROR(pFunc);
@@ -331,7 +334,7 @@ QDMI_STATUS get_result(std::optional<std::string> &result,
 
   auto _gil_quard = GilGuard();
 
-  PyObject *py_module = *get_parityos_module();
+  PyObject *py_module = *get_parityos_wrapper_module();
 
   PyObject *pFunc = PyObject_GetAttrString(py_module, "get_result");
   CHECK_PYTHON_ERROR(pFunc);
@@ -367,9 +370,9 @@ int ParityOS_QDMI_device_initialize(void) {
 }
 
 int ParityOS_QDMI_device_finalize(void) {
-  if (*get_parityos_module() != nullptr) {
-    Py_DECREF(*get_parityos_module());
-    *get_parityos_module() = nullptr;
+  if (*get_parityos_wrapper_module() != nullptr) {
+    Py_DECREF(*get_parityos_wrapper_module());
+    *get_parityos_wrapper_module() = nullptr;
   }
 
   if (Py_IsInitialized() && !_Py_IsFinalizing() && !is_from_python()) {
