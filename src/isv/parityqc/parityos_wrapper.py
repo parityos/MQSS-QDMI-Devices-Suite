@@ -5,12 +5,25 @@ Auxiliary script to conveniently use parityos functionality from parityos.cpp vi
 
 # TODO: Make sure parityos is installed whenever this script is executed.
 
+from functools import wraps
 from typing import Optional
+
+def exceptions_to_none(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            return None
+
+    return wrapper
+
 
 # TODO: this is just toy code for the fake_backend. The actual parityos backend does not need this.
 submission_results: dict[int, str] = dict()
 
 
+@exceptions_to_none
 def create_parityos_client(base_url: str) -> Optional["HTTPClient"]:
     """Create the parityos http client.
 
@@ -19,15 +32,12 @@ def create_parityos_client(base_url: str) -> Optional["HTTPClient"]:
     It is expected that the username and password are set via an environment variable. If anything
     goes wrong it returns `None` otherwise the client.
     """
-    try:
-        from parityos.services.authentication import EnvVarAuth
-        from parityos.services.client import HTTPClient
+    from parityos.services.authentication import EnvVarAuth
+    from parityos.services.client import HTTPClient
 
-        auth = EnvVarAuth()
-        client = HTTPClient(authenticator=auth, host_url=base_url)
-        return client
-    except:
-        return None
+    auth = EnvVarAuth()
+    client = HTTPClient(authenticator=auth, host_url=base_url)
+    return client
 
 
 # TODO: this is still a fake implementation. The real one would use the client.
