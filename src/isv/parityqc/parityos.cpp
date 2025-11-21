@@ -135,8 +135,7 @@ QDMI_STATUS initialize_python() {
 
 /// Calls the python function with the same name (and *essentially* the same
 /// signature).
-QDMI_STATUS create_parityos_client(PyObject **out, std::string_view username,
-                                   std::string_view base_url) {
+QDMI_STATUS create_parityos_client(PyObject **out, std::string_view base_url) {
   auto _gil_quard = GilGuard();
 
   /// TODO: we should distinguish FATAL from PERMISSION DENIED errors.
@@ -145,8 +144,7 @@ QDMI_STATUS create_parityos_client(PyObject **out, std::string_view username,
                                            "create_parityos_client");
   CHECK_PYTHON_ERROR(pFunc);
 
-  PyObject *pArgs = PyTuple_Pack(2, PyUnicode_FromString(username.data()),
-                                 PyUnicode_FromString(base_url.data()));
+  PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString(base_url.data()));
   CHECK_PYTHON_ERROR(pArgs);
 
   PyObject *pResult = PyObject_CallObject(pFunc, pArgs);
@@ -219,8 +217,6 @@ struct ParityOS_QDMI_Device_Session_impl_d {
   enum SESSION_STATUS status = SESSION_STATUS::ALLOCATED;
   /// For authentication with parityapi, e.g. `https://api.parityqc.com/`.
   std::string base_url = "";
-  /// For authentication with parityapi
-  std::string username = "";
   /// Let it be hardcoded for now.
   const unsigned api_version = 3;
   /// This is set iff it is in the `INITIALIZED` status (authentication with
@@ -229,7 +225,7 @@ struct ParityOS_QDMI_Device_Session_impl_d {
 
   /// Whether the session has set all fields relevant for authentication with
   /// parityos.
-  bool has_auth_data() { return base_url != "" && username != ""; }
+  bool has_auth_data() { return base_url != ""; }
 
   ~ParityOS_QDMI_Device_Session_impl_d() {
     auto _gil_quard = GilGuard();
@@ -415,8 +411,7 @@ int ParityOS_QDMI_device_session_init(ParityOS_QDMI_Device_Session session) {
     return QDMI_ERROR_PERMISSIONDENIED;
   }
 
-  CHECK_QDMI_ERROR(create_parityos_client(&session->client, session->username,
-                                          session->base_url));
+  CHECK_QDMI_ERROR(create_parityos_client(&session->client, session->base_url));
 
   session->status = SESSION_STATUS::INITIALIZED;
   return QDMI_SUCCESS;
@@ -441,8 +436,7 @@ int ParityOS_QDMI_device_session_set_parameter(
     return QDMI_ERROR_BADSTATE;
   }
 
-  if (param != QDMI_DEVICE_SESSION_PARAMETER_BASEURL &&
-      param != QDMI_DEVICE_SESSION_PARAMETER_USERNAME) {
+  if (param != QDMI_DEVICE_SESSION_PARAMETER_BASEURL) {
     return QDMI_ERROR_NOTSUPPORTED;
   }
 
@@ -450,9 +444,6 @@ int ParityOS_QDMI_device_session_set_parameter(
     switch (param) {
     case QDMI_DEVICE_SESSION_PARAMETER_BASEURL:
       session->base_url = std::string(static_cast<const char *>(value), size);
-      break;
-    case QDMI_DEVICE_SESSION_PARAMETER_USERNAME:
-      session->username = std::string(static_cast<const char *>(value), size);
       break;
     default:
       return QDMI_ERROR_NOTSUPPORTED;

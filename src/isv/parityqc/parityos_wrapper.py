@@ -11,17 +11,20 @@ from typing import Optional
 submission_results: dict[int, str] = dict()
 
 
-def create_parityos_client(username: str, base_url: str) -> Optional["HTTPClient"]:
+def create_parityos_client(base_url: str) -> Optional["HTTPClient"]:
     """Create the parityos http client.
 
     If the creation succeeds this implies that authentication worked.
 
-    It is expected that the password is set via an environment variable. If anything goes wrong it
-    returns `None` otherwise the client.
+    It is expected that the username and password are set via an environment variable. If anything
+    goes wrong it returns `None` otherwise the client.
     """
     try:
+        from parityos.services.authentication import EnvVarAuth
         from parityos.services.client import HTTPClient
-        client = HTTPClient(username=username, host=base_url)
+
+        auth = EnvVarAuth()
+        client = HTTPClient(authenticator=auth, host_url=base_url)
         return client
     except:
         return None
@@ -99,3 +102,10 @@ def _fake_backend(content: str, submission_id) -> None:
         submission_results[submission_id] = result
     except:
         return # fatal error
+
+
+# FIXME: remove this
+if __name__ == "__main__":
+    print("Testing ...")
+    c = create_parityos_client("http://localhost:8000")
+    print(c)

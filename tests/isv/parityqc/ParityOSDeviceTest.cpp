@@ -17,16 +17,17 @@
 
 class ParityOSDeviceTest : public ::testing::Test {
 private:
-  static void assert_parityos_pass_is_set_or_exit(const char *username) {
+  static void assert_parityos_auth_envs_are_set_or_exit() {
     auto pass_var = "PARITYOS_PASS";
+    auto user_var = "PARITYOS_USER";
 
-    auto pass = std::getenv(pass_var);
-    if (!pass) {
-      std::cerr << "\nERROR: Please export `" << pass_var
-                << "` into your environment. It should contain the parityos "
-                   "password of the user `"
-                << username << "` which is used for testing." << std::endl;
-      exit(1);
+    for (const auto var : {user_var, pass_var}) {
+      auto val = std::getenv(var);
+      if (!val) {
+        std::cerr << "\nERROR: Please export `" << var
+                  << "` into your environment." << std::endl;
+        exit(1);
+      }
     }
   }
 
@@ -49,9 +50,8 @@ protected:
 
   static void SetUpTestSuite() {
     const char *base_url = get_base_url_or_exit();
-    const char *username = "testuser";
 
-    assert_parityos_pass_is_set_or_exit(username);
+    assert_parityos_auth_envs_are_set_or_exit();
 
     // This function *must* be called first (and exactly once):
     ASSERT_EQ(ParityOS_QDMI_device_initialize(), QDMI_SUCCESS)
@@ -68,12 +68,6 @@ protected:
                   strlen(base_url) * sizeof(char), base_url),
               QDMI_SUCCESS)
         << "Failed to set base url";
-
-    ASSERT_EQ(ParityOS_QDMI_device_session_set_parameter(
-                  session, QDMI_DEVICE_SESSION_PARAMETER_USERNAME,
-                  strlen(username) * sizeof(char), username),
-              QDMI_SUCCESS)
-        << "Failed to set username";
 
     // This function has to be called before using the `session` with the device
     // query or device job interface.
@@ -172,6 +166,7 @@ protected:
   void TearDown() override { ParityOS_QDMI_device_job_free(job); }
 };
 
+// FIXME: sensible test program
 const std::string JobTest::program = "{ \"content\": \"hello\" }";
 const std::string JobTest::result = "is english";
 
