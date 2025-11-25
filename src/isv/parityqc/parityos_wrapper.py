@@ -41,42 +41,38 @@ def create_parityos_client(base_url: str) -> Optional["HTTPClient"]:
 
 
 # TODO: this is still a fake implementation. The real one would use the client.
+@exceptions_to_none
 def submit_job(client: "HTTPClient", program: str) -> int | None:
     """Submit a program to the parityos web service to be compiled to a circuit.
 
     It returns the submission id which can be used to identify the job results once they are
     available. Returns `None` if anything goes wrong.
     """
-    try:
-        assert client is not None, "missing client"
-        import json
-        parsed = json.loads(program)
-        assert "content" in parsed
-        content = parsed["content"]
+    assert client is not None, "missing client"
+    import json
+    parsed = json.loads(program)
+    assert "content" in parsed
+    content = parsed["content"]
 
-        submission_id = _next_submission_id()
-        _fake_backend(content, submission_id)
-        # TODO: actual remote call will probably take some time but be non-blocking. Caller has to
-        # actively poll for the result (`get_result`).
+    submission_id = _next_submission_id()
+    _fake_backend(content, submission_id)
+    # TODO: actual remote call will probably take some time but be non-blocking. Caller has to
+    # actively poll for the result (`get_result`).
 
-        return submission_id
-    except:
-        return None
+    return submission_id
 
 
 # TODO: this is still a fake implementation.
+@exceptions_to_none
 def get_result(submission_id: int) -> str | None:
     """Return the compilation result of a job or `None` if not available.
 
     Right now it also returns `None` if anything goes wrong.
     """
-    try:
-        global submission_results
-        if submission_id in submission_results:
-            return submission_results[submission_id]
-        else:
-            return None
-    except:
+    global submission_results
+    if submission_id in submission_results:
+        return submission_results[submission_id]
+    else:
         return None
 
 
