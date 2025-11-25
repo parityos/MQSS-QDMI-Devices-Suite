@@ -64,7 +64,7 @@ def submit_job(client: "HTTPClient", program: str) -> int | None:
 
 # TODO: this is still a fake implementation.
 @exceptions_to_none
-def get_result(submission_id: int) -> str | None:
+def poll_result(submission_id: int) -> str | None:
     """Return the compilation result of a job or `None` if not available.
 
     Right now it also returns `None` if anything goes wrong.
@@ -108,10 +108,3 @@ def _fake_backend(content: str, submission_id) -> None:
         submission_results[submission_id] = result
     except:
         return # fatal error
-
-
-# FIXME: remove this
-if __name__ == "__main__":
-    print("Testing ...")
-    c = create_parityos_client("http://localhost:8000")
-    print(c)

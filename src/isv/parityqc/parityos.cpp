@@ -321,8 +321,8 @@ QDMI_STATUS submit_job(ParityOS_QDMI_Device_Job job) {
  * result is available. Once it is you can be assured that retrieval will be
  * quick.
  */
-QDMI_STATUS get_result(std::optional<std::string> &result,
-                       ParityOS_QDMI_Device_Job job) {
+QDMI_STATUS poll_result(std::optional<std::string> &result,
+                        ParityOS_QDMI_Device_Job job) {
   assert(job && "job must not be null");
   assert(job->status >= QDMI_JOB_STATUS_SUBMITTED && "job must be submitted");
   assert(job->status <= QDMI_JOB_STATUS_DONE &&
@@ -332,7 +332,7 @@ QDMI_STATUS get_result(std::optional<std::string> &result,
 
   PyObject *py_module = *get_parityos_wrapper_module();
 
-  PyObject *pFunc = PyObject_GetAttrString(py_module, "get_result");
+  PyObject *pFunc = PyObject_GetAttrString(py_module, "poll_result");
   CHECK_PYTHON_ERROR(pFunc);
 
   PyObject *py_submission_id = PyLong_FromUnsignedLongLong(job->submission_id);
@@ -592,7 +592,7 @@ int ParityOS_QDMI_device_job_wait(ParityOS_QDMI_Device_Job job,
     /// TODO: At the moment the job is synchronous so we only have to retrieve
     /// the result without error.
     std::optional<std::string> maybe_result;
-    CHECK_QDMI_ERROR(get_result(maybe_result, job));
+    CHECK_QDMI_ERROR(poll_result(maybe_result, job));
 
     if (maybe_result.has_value()) {
       job->status = QDMI_JOB_STATUS_DONE;
