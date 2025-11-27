@@ -19,7 +19,12 @@ def exceptions_to_none(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except Exception as e:
+            print("ERROR from wrapper script:", e)
+            return None
         except:
+            # just in case
+            print("ERROR from wrapper script: ???")
             return None
 
     return wrapper
@@ -55,15 +60,9 @@ def submit_job(client: "HTTPClient", program: str) -> int :
     available. Returns `None` if anything goes wrong.
     """
     assert client is not None, "missing client"
-    import json
-    parsed = json.loads(program)
-    assert "content" in parsed
-    content = parsed["content"]
 
     submission_id = _next_submission_id()
-    _fake_backend(content, submission_id)
-    # TODO: actual remote call will probably take some time but be non-blocking. Caller has to
-    # actively poll for the result (`get_result`).
+    _fake_backend(program, submission_id)
 
     return submission_id
 
@@ -92,7 +91,7 @@ def _next_submission_id():
     global _gen
 
     def make_gen():
-        i = 42 # arbitrary strictly positive number
+        i = 1 # arbitrary strictly positive number
         while True:
             yield i
             i += 1
@@ -103,15 +102,14 @@ def _next_submission_id():
     return next(_gen)
 
 
-def _fake_backend(content: str, submission_id) -> None:
+def _fake_backend(program: str, submission_id) -> None:
     global _submission_results
     result = None
 
-    if content == "hello":
-        result = "is english"
-    elif content == "hallo":
-        result = "is german"
-    else:
-        result = "invalid input"
+    # Tiny heuristic validation.
+    assert "ProblemRepresentation" in program, "invalid input (expected problem representation)"
+
+    # placeholder for the actual result.
+    result = """{ "_cls": "Circuit", "_data": {} }"""
 
     _submission_results[submission_id] = result
