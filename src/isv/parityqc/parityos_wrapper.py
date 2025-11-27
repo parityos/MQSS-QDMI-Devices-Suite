@@ -103,6 +103,11 @@ def _next_submission_id():
 
 
 def _fake_backend(program: str, submission_id) -> None:
+    """Placeholder for the calls to the parity api.
+
+    The actual implementation would probably need to fire up an async computation to call the
+    different core services and assemble a QAOA circuit from the outputs.
+    """
     global _submission_results
     result = None
 
