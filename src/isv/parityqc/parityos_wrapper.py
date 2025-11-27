@@ -94,17 +94,14 @@ def _next_submission_id():
 
 
 def _fake_backend(content: str, submission_id) -> None:
-    try:
-        global submission_results
-        result = None
+    global submission_results
+    result = None
 
-        if content == "hello":
-            result = "is english"
-        elif content == "hallo":
-            result = "is german"
-        else:
-            result = "invalid input"
+    if content == "hello":
+        result = "is english"
+    elif content == "hallo":
+        result = "is german"
+    else:
+        result = "invalid input"
 
-        submission_results[submission_id] = result
-    except:
-        return # fatal error
+    submission_results[submission_id] = result
